@@ -37,7 +37,7 @@ void worker_acceptor_thread() {
     addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(ls, (sockaddr*)&addr, sizeof(addr)) < 0) { perror("bind"); close(ls); return; }
     if (listen(ls, 64) < 0) { perror("listen"); close(ls); return; }
-    cerr << "[server] worker_acceptor listening on " << WORKER_PORT << "\n";
+    cerr << "[server] el worker_acceptor está escuchando en el puerto " << WORKER_PORT << "\n";
     while (true) {
         int ws = accept(ls, NULL, NULL);
         if (ws < 0) { perror("accept"); continue; }
@@ -45,7 +45,7 @@ void worker_acceptor_thread() {
             lock_guard<mutex> lk(worker_mtx);
             worker_sockets.push_back(ws);
         }
-        cerr << "[server] worker connected fd=" << ws << " total=" << worker_sockets.size() << "\n";
+        cerr << "[server] trabajador conectado fd=" << ws << " total=" << worker_sockets.size() << "\n";
     }
 }
 
@@ -115,7 +115,6 @@ void send_Qr_to_worker(int sock, const string& fileQr, int k)
     send_all(sock, Qr.data, sizeof(float)*k*k);
     mmap_close(Qr);
 }
-
 
 void recv_Bi_from_worker_mmap(int ws, const string& fileBi, int k, int n) {
     MsgHeader h;
@@ -222,7 +221,7 @@ void send_Sigma_mmap(int sock, const string& sigmaFile, int k){
     send_all(sock, Sm.data, (size_t)k * sizeof(float));
     mmap_close(Sm);
 
-    cout << "[server->client] sent Sigma via mmap (" << sigmaFile << ")\n";
+    cout << "[server->client] se envió Sigma mediante mmap (" << sigmaFile << ")\n";
 }
 
 void send_Util_Sinv_to_worker_mmap(int sock,const string &UtilFile,
@@ -279,7 +278,7 @@ void send_Vt_to_client(int cs, const string &VtFile, int k, int n){
     send_all(cs, Vt.data, Vt.bytes);
     mmap_close(Vt);
 
-    cout << "[server->client] sent (" <<VtFile<< ")\n";
+    cout << "[server->client] archivo enviado (" <<VtFile<< ")\n";
 }
 
 void recv_Ui_from_worker_mmap(int sock, const string &outfile, int rows_i, int k){
@@ -287,7 +286,7 @@ void recv_Ui_from_worker_mmap(int sock, const string &outfile, int rows_i, int k
     recv_all(sock, Uimm.data, Uimm.bytes);
     mmap_close(Uimm);
 
-    cout << "[server] received Ui -> " << outfile 
+    cout << "[server] se recibió Ui -> " << outfile 
               << " (" << rows_i << " x " << k << ")\n";
 }
 
@@ -314,11 +313,11 @@ void assemble_U_mmap(const vector<string> &Ui_files,
     }
 
     mmap_close(Ufinal);
-    cout << "[server] assembled U with mmap\n";
+    cout << "[server] ensambló U con mmap\n";
 }
 
 void clientHandler(int cs){
-    cout << "[server] client connected fd=" << cs << "\n";
+    cout << "[server] cliente conectado fd=" << cs << "\n";
     MsgHeader h;
     if (!recv_all(cs, &h, sizeof(h))) { close(cs); return; }
 
@@ -335,10 +334,10 @@ void clientHandler(int cs){
     }
 
     // Expect header ID_A with a = n, b = k
-    if (h.id != ID_A) { cerr << "expected A header\n"; close(cs); return; }
+    if (h.id != ID_A) { cerr << "se esperaba un encabezado A\n"; close(cs); return; }
     uint64_t n = h.a;
     uint64_t k_full = h.b; // k + p (oversampling)
-    cerr << "[server] randomized SVD with n="<<n<<" k_full="<<k_full<<"\n";
+    cerr << "[server] randomized SVD con n = "<<n<<" k_full="<<k_full<<"\n";
 
     // prepare file server_matrix.bin
     string fname = "server_matrix.bin";
@@ -354,12 +353,12 @@ void clientHandler(int cs){
     while (rec < bytes) {
         size_t chunk = (bytes - rec) > CHUNK ? CHUNK : (bytes - rec);
         if (!recv_all(cs, base + rec, chunk)) { 
-            cerr << "recv matrix failed\n"; 
+            cerr << "error al recibir la matriz\n"; 
             munmap(mapv, bytes); close(fd); close(cs); return; 
         }
         rec += chunk;
     }
-    cerr << "[client->server] received matrix A ("<<n<<"x"<<n<<")\n";
+    cerr << "[client->server] matriz A recibida ("<<n<<"x"<<n<<")\n";
 
     // receive target k (without oversampling) to truncate later
     uint64_t k_target = k_full;
@@ -367,7 +366,7 @@ void clientHandler(int cs){
     if (recv_all(cs, &hk, sizeof(hk)) && hk.id == ID_K) {
         k_target = hk.a;
     } else {
-        cerr << "[server] warning: no ID_K header, using k_full\n";
+        cerr << "[server] advertencia: no se encontró el encabezado ID_K, se usará k_full\n";
     }
     int k_req = (int)k_target;
     int k = (int)k_full;
@@ -378,9 +377,9 @@ void clientHandler(int cs){
     if (recv_all(cs, &seedMsg, sizeof(seedMsg)) && seedMsg.id == ID_S) {
         seed = seedMsg.a;
         if (seedMsg.b && seedMsg.b != k)
-            cerr << "[server] warning: boss reported k="<<seedMsg.b<<" but header had k="<<k<<"\n";
+            cerr << "[server] advertencia: el jefe indicó k="<<seedMsg.b<<" , pero el encabezado tenía k="<<k<<"\n";
     } else {
-        cerr << "[server] warning: no seed header from boss, using default "<<seed<<"\n";
+        cerr << "[server] advertencia: el jefe no envió un encabezado de semilla; se usará el valor por defecto "<<seed<<"\n";
     }
 
     vector<int> ws;
@@ -416,13 +415,13 @@ void clientHandler(int cs){
         const float* Ai = M + (size_t)start[i] * n;
         send_Ai_to_worker(ws[i], rowsi, n, Ai);
     }
-    cerr << "[server->workers] sent Ai to workers\n";
+    cerr << "[server->workers] matriz Ai enviada a los trabajadores\n";
 
     // 2) send seed and k
     for (int i = 0; i < W; ++i) {
         send_seed_to_worker(ws[i], seed, k);
     }
-    cerr << "[server->workers] sent seed and k\n";
+    cerr << "[server->workers] se enviaron la semilla y el valor k\n";
 
     // 3) receive R_i from each worker
     vector<string> Ri_files(W);
@@ -430,14 +429,14 @@ void clientHandler(int cs){
         if (nrows[i] == 0) continue;
         Ri_files[i] = "Ri_" + to_string(i) + ".bin";
         recv_R_from_worker_mmap(ws[i], Ri_files[i], k);
-        cout<<"[workers->server] received R_"<<i<<" from worker "<<i<<"\n";
+        cout<<"[workers->server] se recibió R_"<<i<<" del trabajador "<<i<<"\n";
     }
 
     
     // 4) TSQR mmap
     build_Rstack_mmap(Ri_files,W,k,"Rstack.bin");
     qr_mmap("Rstack.bin", W*k, k, "Qr.bin", "Rglobal.bin");
-    cout << "[server] R_stack & TSQR complete\n";
+    cout << "[server] R_stack y TSQR completados\n";
 
     // 5) send Qr_i to each worker
     vector<string> fileQri(W);
@@ -445,7 +444,7 @@ void clientHandler(int cs){
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
         send_Qr_to_worker(ws[i], fileQri[i], k);
-        cout << "[server->workers] sent Qr_"<<i<<" to worker " << i << "\n";
+        cout << "[server->workers] se envió Qr_"<<i<<" al trabajador " << i << "\n";
     }
 
     // 6) receive B_i from workers
@@ -456,13 +455,13 @@ void clientHandler(int cs){
         fileBi_list[i] = fileBi;
 
         recv_Bi_from_worker_mmap(ws[i], fileBi, k, n);
-        cout << "[workers->server] received B_"<<i<<" from worker " << i << " (k x n)\n";
+        cout << "[workers->server] se recibió B_"<<i<<" del trabajador " << i << " (k x n)\n";
     }
 
     
     // 7) Construct B = [B1 B2 ...] horizontally (k x n)
     assemble_B_mmap(fileBi_list, nrows, W, k, n, "B_final.bin");
-    cout << "[server] assembled B (k x n) using mmap\n";
+    cout << "[server] ensambló B (k x n) usando mmap\n";
 
     auto Bmap = mmap_open_read("B_final.bin", k, n);
 
@@ -470,7 +469,7 @@ void clientHandler(int cs){
     for (int j = 0; j < W; ++j) {
         if (ncols[j] == 0) continue;
         send_B_block_to_worker_mmap(ws[j],Bmap,k, n, start_cols[j], ncols[j]);
-        cout << "[server->workers] sent Bj ("<< start_cols[j]<< " - " << start_cols[j]+ncols[j] << ")\n";
+        cout << "[server->workers] se envió Bj ("<< start_cols[j]<< " - " << start_cols[j]+ncols[j] << ")\n";
     }
     mmap_close(Bmap);
 
@@ -483,20 +482,20 @@ void clientHandler(int cs){
          fileCj_list[j] = "Cj_" + to_string(j) + ".bin";
 
         recv_Bi_from_worker_mmap(ws[j], fileCj_list[j], k,k);
-        cout << "[server] received C_" << j << " from worker " << j << "\n";
+        cout << "[server] se recibió C_" << j << " del trabajador " << j << "\n";
     }
 
     assemble_B_mmap(fileCj_list, ncols, W, k, k,"C_final.bin");
-    cout << "[server] assembled C (k x k) using mmap\n";
+    cout << "[server] matriz C (k x k) ensamblada usando mmap\n";
     
     eigendecompose_C_mmap("C_final.bin",k,"Utilde.bin","Lambda.bin");
     sigma_and_inv_mmap("Lambda.bin", "Sigma.bin","SigmaInv.bin", k);
 
-    cout << "[server] Calculated Sigma, Utilde, SigmaInv\n";
+    cout << "[server] se calcularon Sigma, Utilde y SigmaInv\n";
 
     for (int i = 0; i < W; ++i) {
         send_Util_Sinv_to_worker_mmap(ws[i],"Utilde.bin", "SigmaInv.bin",k);
-        cout << "[server->Workers] Send Utilde and SigmaInv to Worker" << i << "\n";
+        cout << "[server->Workers] se enviaron Utilde y SigmaInv al trabajador " << i << "\n";
     }
 
     vector<string> fileVj_list(W);
@@ -507,12 +506,12 @@ void clientHandler(int cs){
 
         recv_Vj_from_worker_mmap(ws[i], fileVj_list[i], k, ncols[i]);
 
-        cout << "[workers->server] received V_" << i 
+        cout << "[workers->server] se recibió V_" << i 
             << " (" << k << " x " << ncols[i] << ")\n";
     }
 
     assemble_Vt_mmap(fileVj_list, start_cols, ncols, W, k, n, "Vt_final.bin");
-    cout << "[server] assembled Vt (k x n) using mmap\n";
+    cout << "[server] ensambló Vt (k x n) usando mmap\n";
 
     vector<string> Ui_files(W);
     for (int i = 0; i < W; i++){
@@ -569,7 +568,7 @@ void clientHandler(int cs){
             mmap_close(Strim);
         }
 
-        cout << "[server] truncated results to k_req=" << k_req << "\n";
+        cout << "[server] se truncaron los resultados a k_req=" << k_req << "\n";
     }
 
     // Enviar U (header + stream fichero U.bin)
@@ -589,7 +588,7 @@ void clientHandler(int cs){
 
     MsgHeader md; md.id = ID_DONE; md.a = 0; md.b = 0;
     send_all(cs, &md, sizeof(md));
-    cerr << "[server] sent U, S, V^T and DONE to client\n";
+    cerr << "[server] se enviaron U, S, V^T y DONE al cliente\n";
 
     munmap(mapv, bytes);
     close(fd);
