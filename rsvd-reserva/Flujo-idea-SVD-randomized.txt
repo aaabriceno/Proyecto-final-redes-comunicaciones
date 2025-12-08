@@ -1,0 +1,29 @@
+Tengo una matriz A que es n x n
+| 2  3  4 12|
+| 4  8  3 11|
+| 6  9  2 23|
+|12 13 18 20|
+Se debe tener el valor de k (valores singulares que deseamos tener)
+SE DIVIDE A POR FILAS
+ENTONCES QUEDA ASI: 
+Af1: | 2  3  4 12|
+Af2: | 4  8  3 11|
+Af3: | 6  9  2 23|
+AF4: |12 13 18 20|
+Primero debemos particionar esta matriz
+Cada obrero almacena su bloque Ai : A1, A2, A3 y A4
+Fase 0:
+-  Debemos obtener Y = A x Ω (matriz random generada localmente)
+	Donde Ω es de tamaño n x k
+	Se crea una semilla en el server, y los obreros generan localmente a Ω con esta semilla
+	
+	cabe aclarar que k deberia ser k + p (oversampling) 
+	donde si k es pequeno, p puede ser (5-10) y si k es grande
+	p puede ser entre el 5%-20% de k
+- Luego de esto cada obrero debe calcular su Yi = Ai x Ω (n x k)
+
+Fase 1:
+- Debemos  obtener Q es el formato QR de cada Yi
+	Osea cada obrero tendrá un Qi y Ri de cada Yi
+	Luego se enviara Ri a su capataz 
+
