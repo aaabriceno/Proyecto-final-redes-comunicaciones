@@ -17,9 +17,7 @@ void generate_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
     uint64_t total = (uint64_t)n * k;
     for (uint64_t i = 0; i < total; i++)
         O.data[i] = dist(rng);
-
     mmap_close(O);
-
     cout << "[worker] Omega builded: " << fileOmega << "\n";
 }
 
