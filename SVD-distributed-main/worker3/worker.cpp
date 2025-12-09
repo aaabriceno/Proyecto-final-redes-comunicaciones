@@ -285,18 +285,28 @@ void handle_connection(int sock) {
     close(sock);
 }
 
-int main() {
+int main(int argc, char** argv) {
+
+    if (argc < 2) {
+        cout << "Uso: " << argv[0] << " <IP_del_servidor> [puerto]\n";
+        return 1;
+    }
+
+    const char* ip = argv[1];
+    int port = (argc >= 3 ? atoi(argv[2]) : WORKER_PORT);
+
     int s = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in serv{};
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(WORKER_PORT);
-    inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr);
+    serv.sin_port = htons(port);
+    inet_pton(AF_INET, ip, &serv.sin_addr);
+
     if (connect(s, (sockaddr*)&serv, sizeof(serv)) < 0) {
         perror("connect worker");
         return 1;
     }
-    cout << "[worker] connected to server on port " << WORKER_PORT << "\n";
 
+    cout << "[worker] connected to server on port " << port << "\n";
     handle_connection(s);
     return 0;
 }
