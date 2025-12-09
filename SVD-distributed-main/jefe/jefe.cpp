@@ -106,7 +106,7 @@ uint64_t choose_seed() {
 } // namespace
 
 void handle_client(int cs) {
-    const uint64_t min_workers = 1;
+    const uint64_t min_workers = 1; // el cliente decide si procede con 1 o espera por más
     auto send_done = [&](int sock){
         MsgHeader d(ID_DONE,0,0);
         send_all(sock, &d, sizeof(d));
@@ -114,7 +114,37 @@ void handle_client(int cs) {
 
     uint64_t cid = client_counter.fetch_add(1, memory_order_relaxed);
     MsgHeader h;
-    if (!recv_all(cs, &h, sizeof(h)) || h.id != ID_A) {
+    if (!recv_all(cs, &h, sizeof(h))) {
+        cerr << "[jefe] encabezado invalido del cliente\n";
+        close(cs);
+        return;
+    }
+
+    // Si el cliente pide disponibilidad primero (ID_H), respondemos y seguimos esperando ID_A
+    if (h.id == ID_H) {
+        int ss_chk = connect_to_dispatch_server();
+        if (ss_chk < 0) { send_done(cs); close(cs); return; }
+        MsgHeader req(ID_H, 0, 0), resp;
+        if (!send_all(ss_chk, &req, sizeof(req)) ||
+            !recv_all(ss_chk, &resp, sizeof(resp)) ||
+            resp.id != ID_H) {
+            cerr << "[jefe] fallo en handshake de disponibilidad con el server\n";
+            send_done(cs);
+            close(ss_chk);
+            close(cs);
+            return;
+        }
+        send_all(cs, &resp, sizeof(resp));
+        close(ss_chk);
+
+        // Esperar el verdadero ID_A
+        if (!recv_all(cs, &h, sizeof(h)) || h.id != ID_A) {
+            cerr << "[jefe] encabezado invalido del cliente tras handshake\n";
+            send_done(cs);
+            close(cs);
+            return;
+        }
+    } else if (h.id != ID_A) {
         cerr << "[jefe] encabezado invalido del cliente\n";
         close(cs);
         return;
@@ -161,20 +191,34 @@ void handle_client(int cs) {
 
     // Handshake de disponibilidad con el server (antes de enviar la matriz)
     MsgHeader availReq(ID_H, min_workers, 0);
-    MsgHeader availResp;
-    if (!send_all(ss, &availReq, sizeof(availReq)) ||
-        !recv_all(ss, &availResp, sizeof(availResp)) ||
-        availResp.id != ID_H) {
-        cerr << "[jefe] fallo en handshake de disponibilidad con el server\n";
-        send_done(cs);
-        mmap_close(mm);
-        close(ss);
-        close(cs);
-        unlink(matrixFile.c_str());
-        return;
+    MsgHeader availResp{};
+    const int max_attempts = 3;
+    int attempt = 0;
+    bool enough_workers = false;
+    while (attempt < max_attempts) {
+        if (!send_all(ss, &availReq, sizeof(availReq)) ||
+            !recv_all(ss, &availResp, sizeof(availResp)) ||
+            availResp.id != ID_H) {
+            cerr << "[jefe] fallo en handshake de disponibilidad con el server\n";
+            send_done(cs);
+            mmap_close(mm);
+            close(ss);
+            close(cs);
+            unlink(matrixFile.c_str());
+            return;
+        }
+        if (availResp.a >= min_workers) {
+            enough_workers = true;
+            break;
+        }
+        ++attempt;
+        if (attempt < max_attempts) {
+            cerr << "[jefe] workers disponibles ("<<availResp.a<<") < min ("<<min_workers<<"), reintentando en 5s...\n";
+            this_thread::sleep_for(std::chrono::seconds(5));
+        }
     }
-    if (availResp.a < min_workers) {
-        cerr << "[jefe] no hay workers disponibles (disp="<<availResp.a<<")\n";
+    if (!enough_workers) {
+        cerr << "[jefe] no se alcanzó el mínimo de workers tras "<<max_attempts<<" intentos (disp="<<availResp.a<<")\n";
         send_done(cs);
         mmap_close(mm);
         close(ss);

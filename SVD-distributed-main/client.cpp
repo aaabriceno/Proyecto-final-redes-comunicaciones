@@ -14,6 +14,8 @@
 #include <iostream>
 #include <random>
 #include <string>
+#include <thread>
+#include <chrono>
 
 using namespace std;
 
@@ -80,10 +82,42 @@ void send_matrix_and_receive_svd(int k_total, int k_target) {
     inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr);
     if (connect(sock, (sockaddr*)&serv, sizeof(serv)) < 0) { perror("connect"); close(sock); return; }
 
+    // Pre-check de disponibilidad de workers (min 2, con reintentos)
+    const uint64_t min_workers = 2;
+    const int max_attempts = 3;
+    int attempt = 0;
+    bool proceed = false;
+    while (attempt < max_attempts) {
+        MsgHeader chk(ID_H, 0, 0);
+        if (!send_all(sock, &chk, sizeof(chk))) { cerr << "No se pudo enviar ID_H\n"; close(sock); return; }
+        MsgHeader resp;
+        if (!recv_all(sock, &resp, sizeof(resp)) || resp.id != ID_H) {
+            cerr << "No se pudo recibir disponibilidad de workers\n";
+            close(sock); return;
+        }
+        uint64_t available = resp.a;
+        if (available >= min_workers) { proceed = true; break; }
+        if (available == 1) {
+            cout << "Solo hay 1 worker disponible. ¿Deseas continuar de todos modos? (s/n): ";
+            char ans='n'; cin >> ans;
+            if (ans == 's' || ans == 'S') { proceed = true; break; }
+        }
+        ++attempt;
+        if (attempt < max_attempts) {
+            cout << "Workers disponibles ("<<available<<") < "<<min_workers<<". Reintentando en 5s...\n";
+            this_thread::sleep_for(std::chrono::seconds(5));
+        }
+    }
+    if (!proceed) {
+        cout << "No se enviará la matriz porque no hay suficientes workers.\n";
+        close(sock);
+        return;
+    }
+
     // Message header: ID_A + n + k_total (k+p)
     MsgHeader h;
     h.id = ID_A; h.a = N_global; h.b = k_total;
-    if (!send_all(sock, &h, sizeof(h))) { cerr << "Error alenviar el encabezado\n"; close(sock); return; }
+    if (!send_all(sock, &h, sizeof(h))) { cerr << "Error al enviar el encabezado\n"; close(sock); return; }
 
     // stream matrix in chunks from mmap
     auto mm = mmap_open_read(MATRIX_FILE, N_global, N_global);
