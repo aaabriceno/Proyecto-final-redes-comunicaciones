@@ -108,7 +108,7 @@ void recv_R_from_worker_mmap(int ws, const string &fileRi, uint64_t k){
         {"cols",      "2 B", "Columnas (k)",     to_string(h.b)},
         {"data",      "Var", "Datos de Y (R)",   "[Matriz reducida]"}
     };
-    print_protocol_table("ENVIA_RESULTADOSY(C)", table);
+    print_protocol_table("ENVIA_RESULTADOSR_i(C)", table);
 
     auto Ri = mmap_create(fileRi, k, k);
 
@@ -172,7 +172,7 @@ void recv_Bi_from_worker_mmap(int ws, const string& fileBi, int k, int n) {
         {"cols",      "2 B", "Columnas (n)",     to_string(h.b)},
         {"data",      "Var", "Datos Z (Bi)",     "[Bloque Bi]"}
     };
-    print_protocol_table("ENVIA_RESULTADOSZ(D)", table);
+    print_protocol_table("ENVIA_RESULTADOSB_i(D)", table);
 
     auto Bi = mmap_create(fileBi, k, n);
     recv_all(ws, Bi.data, sizeof(float)*k*n);
@@ -208,6 +208,28 @@ void send_B_block_to_worker_mmap(int sock, MMapMatrix& B, int k, int n,
         size_t bytes = sizeof(float) * col_count;
         send_all(sock, row_ptr, bytes);
     }
+}
+// Función NUEVA para recibir C_j correctamente
+void recv_Cj_from_worker_mmap(int ws, const string& fileCj, int k) {
+    MsgHeader h;
+    recv_all(ws, &h, sizeof(h));
+
+
+    vector<vector<string>> table = {
+        {"C_part",    "1 B", "Tipo",             "ID_UI (Reusado)"}, // O el ID que estés usando
+        {"matrix_id", "4 B", "Id matriz",        "1"},
+        {"rows",      "2 B", "Filas (k)",        to_string(h.a)},
+        {"cols",      "2 B", "Columnas (k)",     to_string(h.b)},
+        {"data",      "Var", "Datos C_j",        "[Matriz k x k]"}
+    };
+    print_protocol_table("RECIBIR_C_PARCIAL(E)", table);
+    // ------------------------------
+
+    auto Cj = mmap_create(fileCj, k, k);
+    // Nota: Cj es k x k
+    size_t bytes = (size_t)k * k * sizeof(float);
+    recv_all(ws, Cj.data, bytes);
+    mmap_close(Cj);
 }
 
 void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
@@ -514,7 +536,7 @@ void clientHandler(int cs){
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
         send_Qr_to_worker(ws[i], fileQri[i], k);
-        cout << "[server->workers] se envió Qr_"<<i<<" al trabajador " << i << "\n";
+        cout << "[server->workers] se envió Qglbal_"<<i<<" al trabajador " << i << "\n";
     }
 
     // 6) receive B_i from workers
@@ -551,10 +573,10 @@ void clientHandler(int cs){
         if (ncols[j] == 0) continue;
          fileCj_list[j] = "Cj_" + to_string(j) + ".bin";
 
-        recv_Bi_from_worker_mmap(ws[j], fileCj_list[j], k,k);
+        recv_Cj_from_worker_mmap(ws[j], fileCj_list[j], k);
         cout << "[server] se recibió C_" << j << " del trabajador " << j << "\n";
     }
-
+    //se usa la misma funcion que bmmap porque solo es para ensamblar
     assemble_B_mmap(fileCj_list, ncols, W, k, k,"C_final.bin");
     cout << "[server] matriz C (k x k) ensamblada usando mmap\n";
     
