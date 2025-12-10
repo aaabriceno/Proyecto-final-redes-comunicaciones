@@ -60,7 +60,7 @@ bool cargar_matriz_desde_bin(const string& ruta) {
     return true;
 }
 
-void generate_matrix(uint64_t N) {
+void generar_matriz(uint64_t N) {
     auto mm = mmap_crear(MATRIX_FILE, N, N);
     uint32_t seed = static_cast<uint32_t>(
         std::chrono::steady_clock::now().time_since_epoch().count() ^
@@ -75,7 +75,7 @@ void generate_matrix(uint64_t N) {
     cout << "Matriz Generada " << N << "x" << N << " en archivo " << MATRIX_FILE << "\n";
 }
 
-void showMatrix(const string &filename,uint64_t max_rows = 5,uint64_t max_cols = 5){
+void mostrar_matriz(const string &filename,uint64_t max_rows = 5,uint64_t max_cols = 5){
     namespace fs = std::filesystem;
     if (!fs::exists(filename)) {
         cout << filename << ": no existe\n\n";
@@ -104,7 +104,7 @@ void showMatrix(const string &filename,uint64_t max_rows = 5,uint64_t max_cols =
     }
 }
 
-void showSigma(const string &filename, uint64_t max_vals = 5){
+void mostrar_sigma(const string &filename, uint64_t max_vals = 5){
     namespace fs = std::filesystem;
     if (!fs::exists(filename)) {
         cout << filename << ": no existe\n\n";
@@ -128,7 +128,7 @@ void showSigma(const string &filename, uint64_t max_vals = 5){
     }
 }
 
-void send_matrix_and_receive_svd(int k_total, int k_target) {
+void enviar_matriz_y_recibir_svd(int k_total, int k_target) {
     if (N_global == 0) { cout << "Generar primero la matriz.\n"; return; }
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in serv{};
@@ -263,7 +263,7 @@ int main() {
         imprimirMenu();
         int op; if (!(cin >> op)) break;
         if (op == 1) {
-            cout << "n = "; uint64_t n; cin >> n; generate_matrix(n);
+            cout << "n = "; uint64_t n; cin >> n; generar_matriz(n);
         } else if (op == 2) {
             cout << "Ruta del archivo binario: ";
             string ruta; cin >> ruta;
@@ -281,12 +281,12 @@ int main() {
                 cout << "k + p debe ser <= n (" << N_global << ")\n";
                 continue;
             }
-            send_matrix_and_receive_svd(k_total, k);
+            enviar_matriz_y_recibir_svd(k_total, k);
         } else if (op == 4) {
-            showMatrix("matrix.bin");
-            showMatrix("U.bin");
-            showMatrix("VT.bin");
-            showSigma("S.bin");
+            mostrar_matriz("matrix.bin");
+            mostrar_matriz("U.bin");
+            mostrar_matriz("VT.bin");
+            mostrar_sigma("S.bin");
         } else break;
     }
     return 0;
