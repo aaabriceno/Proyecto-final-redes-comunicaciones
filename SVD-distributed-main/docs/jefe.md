@@ -21,10 +21,10 @@ Actúa como intermediario: recibe la matriz del cliente, consulta disponibilidad
    - Pasa headers y payloads para `ID_UT`, `ID_S`, `ID_VT`, `ID_DONE`.
 
 ## Funciones clave
-- `connect_to_dispatch_server()`: conecta al server de workers.
-- `forward_matrix(serverSock, mm, n, k)`: manda header `ID_A` y la matriz.
-- `relay_results(serverSock, clientSock)`: túnel U, S, V^T y `DONE`.
-- `choose_seed()`: genera semilla aleatoria de 64 bits.
+- `conectar_servidor_trabajo()`: conecta al server de workers.
+- `reenviar_matriz(serverSock, mm, n, k)`: manda header `ID_A` y la matriz.
+- `retransmitir_resultados(serverSock, clientSock)`: túnel U, S, V^T y `DONE`.
+- `elegir_semilla()`: genera semilla aleatoria de 64 bits.
 
 ## Protocolos
 - `ID_H`: consulta workers disponibles.
