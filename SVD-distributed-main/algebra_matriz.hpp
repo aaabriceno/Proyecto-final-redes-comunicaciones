@@ -1,5 +1,5 @@
-#ifndef MATRIX_MATH_HPP
-#define MATRIX_MATH_HPP
+#ifndef ALGEBRA_MATRIZ_HPP
+#define ALGEBRA_MATRIZ_HPP
 
 #include <vector>
 #include <random>

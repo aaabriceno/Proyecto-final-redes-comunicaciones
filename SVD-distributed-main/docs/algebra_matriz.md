@@ -1,4 +1,4 @@
-# matrix_math.hpp – Guía rápida
+# algebra_matriz.hpp – Guía rápida
 
 ## Propósito
 Rutinas numéricas usadas por workers/server para RSVD.

@@ -1,6 +1,6 @@
 #include "../protocolo.hpp"
 #include "../mapeo_matriz.hpp"
-#include "../matrix_math.hpp"
+#include "../algebra_matriz.hpp"
 
 
 #include <arpa/inet.h>
