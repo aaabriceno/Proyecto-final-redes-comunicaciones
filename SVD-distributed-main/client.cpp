@@ -3,7 +3,7 @@
 // Compile: g++ -std=c++17 client.cpp -o client -pthread
 
 #include "protocolo.hpp"
-#include "matrix_io.hpp"
+#include "mapeo_matriz.hpp"
 
 #include <arpa/inet.h>
 #include <fcntl.h>

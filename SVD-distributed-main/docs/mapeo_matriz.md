@@ -1,4 +1,4 @@
-# matrix_io.hpp – Guía rápida
+# mapeo_matriz.hpp – Guía rápida
 
 ## Propósito
 Helpers para mapear matrices en archivos usando `mmap` (floats).

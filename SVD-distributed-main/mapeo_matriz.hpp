@@ -1,5 +1,5 @@
-#ifndef MATRIX_IO_HPP
-#define MATRIX_IO_HPP
+#ifndef MAPEO_MATRIZ_HPP
+#define MAPEO_MATRIZ_HPP
 
 #include <sys/mman.h>
 #include <sys/stat.h>
