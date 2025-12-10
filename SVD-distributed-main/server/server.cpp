@@ -23,7 +23,7 @@ using namespace std;
 vector<int> worker_sockets;
 mutex worker_mtx;
 
-void print_protocol_table(const string& protocol_name, const vector<vector<string>>& rows) {
+void imprimir_tabla_protocolo(const string& protocol_name, const vector<vector<string>>& rows) {
     cout << "\n=================================================================================\n";
     cout << " PROTOCOLO: " << protocol_name << "\n";
     cout << "=================================================================================\n";
@@ -41,7 +41,7 @@ void print_protocol_table(const string& protocol_name, const vector<vector<strin
     cout << "=================================================================================\n\n";
 }
 
-void worker_acceptor_thread() {
+void hilo_aceptador_workers() {
     int ls = socket(AF_INET, SOCK_STREAM, 0);
     if (ls < 0) { perror("socket"); return; }
     int opt = 1; 
@@ -64,7 +64,7 @@ void worker_acceptor_thread() {
     }
 }
 
-void send_Ai_to_worker(int ws, uint64_t rows_i, uint64_t n, const float* Ai) {
+void enviar_Ai_a_worker(int ws, uint64_t rows_i, uint64_t n, const float* Ai) {
     vector<vector<string>> table = {
         {"B",         "1 B",  "Tipo de mensaje", "ID_A (1)"},
         {"matrix_id", "4 B",  "Id global",       "1"},
@@ -73,7 +73,7 @@ void send_Ai_to_worker(int ws, uint64_t rows_i, uint64_t n, const float* Ai) {
         {"cols",      "2 B",  "Columnas",        to_string(n)},
         {"data",      "Var",  "Valores bloque",  "[" + to_string(rows_i * n) + " floats]"}
     };
-    print_protocol_table("ENVIO_BLOQUE(B)", table);
+    imprimir_tabla_protocolo("ENVIO_BLOQUE(B)", table);
 
     MsgHeader h; h.id = ID_A; h.a = rows_i; h.b = n;
     send_all(ws, &h, sizeof(h));
@@ -81,18 +81,18 @@ void send_Ai_to_worker(int ws, uint64_t rows_i, uint64_t n, const float* Ai) {
     send_all(ws, Ai, bytes);
 }
 
-void send_seed_to_worker(int ws, uint64_t seed, uint64_t k) {
+void enviar_semilla_a_worker(int ws, uint64_t seed, uint64_t k) {
     vector<vector<string>> table = {
         {"S",    "1 B", "Tipo de mensaje", "ID_S (2)"},
         {"seed", "8 B", "Semilla",         to_string(seed)}
     };
-    print_protocol_table("ENVIOS(S)", table);
+    imprimir_tabla_protocolo("ENVIOS(S)", table);
 
     MsgHeader h(ID_S,seed,k);
     send_all(ws, &h, sizeof(h));
 }
 
-void recv_R_from_worker_mmap(int ws, const string &fileRi, uint64_t k){
+void recibir_R_de_worker_mmap(int ws, const string &fileRi, uint64_t k){
     MsgHeader h;
     recv_all(ws, &h, sizeof(h));
 
@@ -103,7 +103,7 @@ void recv_R_from_worker_mmap(int ws, const string &fileRi, uint64_t k){
         {"cols",      "2 B", "Columnas (k)",     to_string(h.b)},
         {"data",      "Var", "Datos de Y (R)",   "[Matriz reducida]"}
     };
-    print_protocol_table("ENVIA_RESULTADOSR_i(C)", table);
+    imprimir_tabla_protocolo("ENVIA_RESULTADOSR_i(C)", table);
 
     auto Ri = mmap_crear(fileRi, k, k);
 
@@ -113,7 +113,7 @@ void recv_R_from_worker_mmap(int ws, const string &fileRi, uint64_t k){
     mmap_cerrar(Ri);
 }
 
-void build_Rstack_mmap(const vector<string>& fileRis, int W, int k, const string& fileRstack){
+void construir_Rstack_mmap(const vector<string>& fileRis, int W, int k, const string& fileRstack){
 
     auto Rstack = mmap_crear(fileRstack, W*k, k);
 
@@ -128,7 +128,7 @@ void build_Rstack_mmap(const vector<string>& fileRis, int W, int k, const string
     mmap_cerrar(Rstack);
 }
 
-void extract_Qr_blocks(const string fileQ, int W, int k, vector<string>& fileQri_list){
+void extraer_bloques_Qr(const string fileQ, int W, int k, vector<string>& fileQri_list){
     auto Qbig = mmap_abrir_lectura(fileQ, W*k, k);
 
     for (int w = 0; w < W; ++w) {
@@ -146,7 +146,7 @@ void extract_Qr_blocks(const string fileQ, int W, int k, vector<string>& fileQri
     mmap_cerrar(Qbig);
 }
 
-void send_Qr_to_worker(int sock, const string& fileQr, int k)
+void enviar_Qr_a_worker(int sock, const string& fileQr, int k)
 {
     MsgHeader h(ID_Q, k, k);
     send_all(sock, &h, sizeof(h));
@@ -156,7 +156,7 @@ void send_Qr_to_worker(int sock, const string& fileQr, int k)
     mmap_cerrar(Qr);
 }
 
-void recv_Bi_from_worker_mmap(int ws, const string& fileBi, int k, int n) {
+void recibir_Bi_de_worker_mmap(int ws, const string& fileBi, int k, int n) {
     MsgHeader h;
     recv_all(ws, &h, sizeof(h));
 
@@ -167,14 +167,14 @@ void recv_Bi_from_worker_mmap(int ws, const string& fileBi, int k, int n) {
         {"cols",      "2 B", "Columnas (n)",     to_string(h.b)},
         {"data",      "Var", "Datos Z (Bi)",     "[Bloque Bi]"}
     };
-    print_protocol_table("ENVIA_RESULTADOSB_i(D)", table);
+    imprimir_tabla_protocolo("ENVIA_RESULTADOSB_i(D)", table);
 
     auto Bi = mmap_crear(fileBi, k, n);
     recv_all(ws, Bi.data, sizeof(float)*k*n);
     mmap_cerrar(Bi);
 }
 
-void assemble_B_mmap(const vector<string>& fileBi_list, const vector<int>& nrows,
+void ensamblar_B_mmap(const vector<string>& fileBi_list, const vector<int>& nrows,
                      int W, int k, int n, const string& outFile){
     auto Bfinal = mmap_crear(outFile, k, n);
     memset(Bfinal.data, 0, sizeof(float) * (size_t)k * n);
@@ -193,7 +193,7 @@ void assemble_B_mmap(const vector<string>& fileBi_list, const vector<int>& nrows
     mmap_cerrar(Bfinal);
 }
 
-void send_B_block_to_worker_mmap(int sock, MMapMatrix& B, int k, int n,
+void enviar_bloque_B_a_worker_mmap(int sock, MMapMatrix& B, int k, int n,
                                  int col_start, int col_count){
     // Enviamos cabecera para que el worker conozca cuántas columnas recibe
     MsgHeader h(ID_D, k, col_count);
@@ -204,7 +204,7 @@ void send_B_block_to_worker_mmap(int sock, MMapMatrix& B, int k, int n,
         send_all(sock, row_ptr, bytes);
     }
 }
-void recv_Cj_from_worker_mmap(int ws, const string& fileCj, int k) {
+void recibir_Cj_de_worker_mmap(int ws, const string& fileCj, int k) {
     MsgHeader h;
     recv_all(ws, &h, sizeof(h));
 
@@ -216,7 +216,7 @@ void recv_Cj_from_worker_mmap(int ws, const string& fileCj, int k) {
         {"cols",      "2 B", "Columnas (k)",     to_string(h.b)},
         {"data",      "Var", "Datos C_j",        "[Matriz k x k]"}
     };
-    print_protocol_table("RECIBIR_C_PARCIAL(E)", table);
+    imprimir_tabla_protocolo("RECIBIR_C_PARCIAL(E)", table);
     // ------------------------------
 
     auto Cj = mmap_crear(fileCj, k, k);
@@ -226,7 +226,7 @@ void recv_Cj_from_worker_mmap(int ws, const string& fileCj, int k) {
     mmap_cerrar(Cj);
 }
 
-void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
+void descomponer_C_mmap(const string &Cfile, int k, const string &UtilFile,
     const string &LambdaFile){
 
     MMapMatrix Cmm = mmap_abrir_lectura(Cfile, k, k);
@@ -261,7 +261,7 @@ void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
     mmap_cerrar(Lambdamm);
 }
 
-void sigma_and_inv_mmap(const string &LambdaFile,
+void calcular_sigma_y_inv_mmap(const string &LambdaFile,
     const string &SigmaFile,const string &SigmaInvFile,int k){
 
     auto Lambdamm = mmap_abrir_lectura(LambdaFile, k, 1);
@@ -283,7 +283,7 @@ void sigma_and_inv_mmap(const string &LambdaFile,
     mmap_cerrar(SigmaInvmm);
 }
 
-void send_Sigma_mmap(int sock, const string& sigmaFile, int k){
+void enviar_Sigma_mmap(int sock, const string& sigmaFile, int k){
     MMapMatrix Sm = mmap_abrir_lectura(sigmaFile, k, 1);
 
     MsgHeader hs(ID_S,k,0);
@@ -294,7 +294,7 @@ void send_Sigma_mmap(int sock, const string& sigmaFile, int k){
     cout << "[server->client] se envió Sigma mediante mmap (" << sigmaFile << ")\n";
 }
 
-void send_Util_Sinv_to_worker_mmap(int sock,const string &UtilFile,
+void enviar_Util_Sinv_a_worker_mmap(int sock,const string &UtilFile,
     const string &SigmaInvFile, int k){
 
     MMapMatrix Utilmm = mmap_abrir_lectura(UtilFile, k, k);
@@ -307,14 +307,14 @@ void send_Util_Sinv_to_worker_mmap(int sock,const string &UtilFile,
     mmap_cerrar(SigmaInvmm);
 }
 
-void recv_Vj_from_worker_mmap(int sock, const string& fileVj, int k, int cols_j){
+void recibir_Vj_de_worker_mmap(int sock, const string& fileVj, int k, int cols_j){
     vector<vector<string>> table = {
         {"V_part",    "1 B", "Tipo",             "ID_VT (Gen)"},
         {"rows",      "2 B", "Filas (k)",        to_string(k)},
         {"cols",      "2 B", "Columnas (sub)",   to_string(cols_j)},
         {"data",      "Var", "Datos V_j",        "[Bloque V_j]"}
     };
-    print_protocol_table("RECIBIR_V_PARCIAL", table);
+    imprimir_tabla_protocolo("RECIBIR_V_PARCIAL", table);
 
     MMapMatrix Vj = mmap_crear(fileVj, k, cols_j);
     size_t bytes = (size_t)k * cols_j * sizeof(float);
@@ -322,7 +322,7 @@ void recv_Vj_from_worker_mmap(int sock, const string& fileVj, int k, int cols_j)
     mmap_cerrar(Vj);
 }
 
-void assemble_Vt_mmap(const vector<string>& fileVj_list, const vector<int>& start_cols,
+void ensamblar_Vt_mmap(const vector<string>& fileVj_list, const vector<int>& start_cols,
     const vector<int>& cols_list, int W, int k, int n, const string& outFile){
 
     MMapMatrix Vt = mmap_crear(outFile, k, n);
@@ -348,7 +348,7 @@ void assemble_Vt_mmap(const vector<string>& fileVj_list, const vector<int>& star
     mmap_cerrar(Vt);
 }
 
-void send_Vt_to_client(int cs, const string &VtFile, int k, int n){
+void enviar_Vt_a_cliente(int cs, const string &VtFile, int k, int n){
     MsgHeader h(ID_VT,k,n);
     send_all(cs, &h, sizeof(h));
 
@@ -359,14 +359,14 @@ void send_Vt_to_client(int cs, const string &VtFile, int k, int n){
     cout << "[server->client] archivo enviado (" <<VtFile<< ")\n";
 }
 
-void recv_Ui_from_worker_mmap(int sock, const string &outfile, int rows_i, int k){
+void recibir_Ui_de_worker_mmap(int sock, const string &outfile, int rows_i, int k){
     vector<vector<string>> table = {
         {"U_part",    "1 B", "Tipo",             "ID_UI (Gen)"},
         {"rows",      "2 B", "Filas (sub)",      to_string(rows_i)},
         {"cols",      "2 B", "Columnas (k)",     to_string(k)},
         {"data",      "Var", "Datos U_i",        "[Bloque U_i]"}
     };
-    print_protocol_table("RECIBIR_U_PARCIAL", table);
+    imprimir_tabla_protocolo("RECIBIR_U_PARCIAL", table);
 
     MMapMatrix Uimm = mmap_crear(outfile, rows_i, k);
     recv_all(sock, Uimm.data, Uimm.bytes);
@@ -376,7 +376,7 @@ void recv_Ui_from_worker_mmap(int sock, const string &outfile, int rows_i, int k
               << " (" << rows_i << " x " << k << ")\n";
 }
 
-void assemble_U_mmap(const vector<string> &Ui_files, 
+void ensamblar_U_mmap(const vector<string> &Ui_files, 
     const vector<int> &nrows,int W, int k, int m, const string &Ufile){
 
     MMapMatrix Ufinal = mmap_crear(Ufile, m, k);
@@ -402,7 +402,7 @@ void assemble_U_mmap(const vector<string> &Ui_files,
     cout << "[server] ensambló U con mmap\n";
 }
 
-void clientHandler(int cs){
+void manejar_cliente(int cs){
     cout << "[server] cliente conectado fd=" << cs << "\n";
     MsgHeader h;
     if (!recv_all(cs, &h, sizeof(h))) { close(cs); return; }
@@ -493,12 +493,12 @@ void clientHandler(int cs){
         uint64_t rowsi = nrows[i];
         if (rowsi == 0) continue;
         const float* Ai = M + (size_t)start[i] * n;
-        send_Ai_to_worker(ws[i], rowsi, n, Ai);
+        enviar_Ai_a_worker(ws[i], rowsi, n, Ai);
     }
     cerr << "[server->workers] matriz Ai enviada a los trabajadores\n";
 
     for (int i = 0; i < W; ++i) {
-        send_seed_to_worker(ws[i], seed, k);
+        enviar_semilla_a_worker(ws[i], seed, k);
     }
     cerr << "[server->workers] se enviaron la semilla y el valor k\n";
 
@@ -506,19 +506,19 @@ void clientHandler(int cs){
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
         Ri_files[i] = "Ri_" + to_string(i) + ".bin";
-        recv_R_from_worker_mmap(ws[i], Ri_files[i], k);
+        recibir_R_de_worker_mmap(ws[i], Ri_files[i], k);
         cout<<"[workers->server] se recibió R_"<<i<<" del trabajador "<<i<<"\n";
     }
 
-    build_Rstack_mmap(Ri_files,W,k,"Rstack.bin");
+    construir_Rstack_mmap(Ri_files,W,k,"Rstack.bin");
     descomponer_qr_mmap("Rstack.bin", W*k, k, "Qr.bin", "Rglobal.bin");
     cout << "[server] R_stack y TSQR completados\n";
 
     vector<string> fileQri(W);
-    extract_Qr_blocks("Qr.bin", W, k, fileQri);
+    extraer_bloques_Qr("Qr.bin", W, k, fileQri);
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
-        send_Qr_to_worker(ws[i], fileQri[i], k);
+        enviar_Qr_a_worker(ws[i], fileQri[i], k);
         cout << "[server->workers] se envió Qglbal_"<<i<<" al trabajador " << i << "\n";
     }
 
@@ -528,18 +528,18 @@ void clientHandler(int cs){
         string fileBi = "B_i_" + to_string(i) + ".bin";
         fileBi_list[i] = fileBi;
 
-        recv_Bi_from_worker_mmap(ws[i], fileBi, k, n);
+        recibir_Bi_de_worker_mmap(ws[i], fileBi, k, n);
         cout << "[workers->server] se recibió B_"<<i<<" del trabajador " << i << " (k x n)\n";
     }
 
-    assemble_B_mmap(fileBi_list, nrows, W, k, n, "B_final.bin");
+    ensamblar_B_mmap(fileBi_list, nrows, W, k, n, "B_final.bin");
     cout << "[server] ensambló B (k x n) usando mmap\n";
 
     auto Bmap = mmap_abrir_lectura("B_final.bin", k, n);
 
     for (int j = 0; j < W; ++j) {
         if (ncols[j] == 0) continue;
-        send_B_block_to_worker_mmap(ws[j],Bmap,k, n, start_cols[j], ncols[j]);
+        enviar_bloque_B_a_worker_mmap(ws[j],Bmap,k, n, start_cols[j], ncols[j]);
         cout << "[server->workers] se envió Bj ("<< start_cols[j]<< " - " << start_cols[j]+ncols[j] << ")\n";
     }
     mmap_cerrar(Bmap);
@@ -550,20 +550,20 @@ void clientHandler(int cs){
         if (ncols[j] == 0) continue;
          fileCj_list[j] = "Cj_" + to_string(j) + ".bin";
 
-        recv_Cj_from_worker_mmap(ws[j], fileCj_list[j], k);
+        recibir_Cj_de_worker_mmap(ws[j], fileCj_list[j], k);
         cout << "[server] se recibió C_" << j << " del trabajador " << j << "\n";
     }
     //se usa la misma funcion que bmmap porque solo es para ensamblar
-    assemble_B_mmap(fileCj_list, ncols, W, k, k,"C_final.bin");
+    ensamblar_B_mmap(fileCj_list, ncols, W, k, k,"C_final.bin");
     cout << "[server] matriz C (k x k) ensamblada usando mmap\n";
     
-    eigendecompose_C_mmap("C_final.bin",k,"Utilde.bin","Lambda.bin");
-    sigma_and_inv_mmap("Lambda.bin", "Sigma.bin","SigmaInv.bin", k);
+    descomponer_C_mmap("C_final.bin",k,"Utilde.bin","Lambda.bin");
+    calcular_sigma_y_inv_mmap("Lambda.bin", "Sigma.bin","SigmaInv.bin", k);
 
     cout << "[server] se calcularon Sigma, Utilde y SigmaInv\n";
 
     for (int i = 0; i < W; ++i) {
-        send_Util_Sinv_to_worker_mmap(ws[i],"Utilde.bin", "SigmaInv.bin",k);
+        enviar_Util_Sinv_a_worker_mmap(ws[i],"Utilde.bin", "SigmaInv.bin",k);
         cout << "[server->Workers] se enviaron Utilde y SigmaInv al trabajador " << i << "\n";
     }
 
@@ -573,13 +573,13 @@ void clientHandler(int cs){
         if (ncols[i] == 0) continue;
         fileVj_list[i] = "V_j_" + to_string(i) + ".bin";
 
-        recv_Vj_from_worker_mmap(ws[i], fileVj_list[i], k, ncols[i]);
+        recibir_Vj_de_worker_mmap(ws[i], fileVj_list[i], k, ncols[i]);
 
         cout << "[workers->server] se recibió V_" << i 
             << " (" << k << " x " << ncols[i] << ")\n";
     }
 
-    assemble_Vt_mmap(fileVj_list, start_cols, ncols, W, k, n, "Vt_final.bin");
+    ensamblar_Vt_mmap(fileVj_list, start_cols, ncols, W, k, n, "Vt_final.bin");
     cout << "[server] ensambló Vt (k x n) usando mmap\n";
 
     vector<string> Ui_files(W);
@@ -587,11 +587,11 @@ void clientHandler(int cs){
         if (nrows[i] == 0) continue;
         Ui_files[i] = "U_i_" + to_string(i) + ".bin";
 
-        recv_Ui_from_worker_mmap(ws[i], Ui_files[i], nrows[i], k);
+        recibir_Ui_de_worker_mmap(ws[i], Ui_files[i], nrows[i], k);
     }
 
 
-    assemble_U_mmap(Ui_files, nrows, W, k, n, "U_final.bin");
+    ensamblar_U_mmap(Ui_files, nrows, W, k, n, "U_final.bin");
 
     string U_to_send = "U_final.bin";
     string Vt_to_send = "Vt_final.bin";
@@ -642,7 +642,7 @@ void clientHandler(int cs){
         {"S",    "Var", "Vector S",        "Enviado (" + to_string(k_req) + ")"},
         {"V",    "Var", "Matriz V",        "Enviada (" + to_string(n) + "x" + to_string(k_req) + ")"}
     };
-    print_protocol_table("Enviar_resultadoFinal(F)", tableF);
+    imprimir_tabla_protocolo("Enviar_resultadoFinal(F)", tableF);
 
     {
         MsgHeader h(ID_UT,n,k_req);
@@ -653,16 +653,16 @@ void clientHandler(int cs){
     }
 
     // send S
-    send_Sigma_mmap(cs, Sigma_to_send, k_req);
+    enviar_Sigma_mmap(cs, Sigma_to_send, k_req);
 
     // send V^T
-    send_Vt_to_client(cs,Vt_to_send,k_req,n);
+    enviar_Vt_a_cliente(cs,Vt_to_send,k_req,n);
 
     vector<vector<string>> tableH = {
         {"H",    "1 B", "Tipo de mensaje", "ID_DONE (99)"},
         {"Info", "-",   "Estado",          "Operacion Completada"}
     };
-    print_protocol_table("Enviar_sol_cliente(H)", tableH);
+    imprimir_tabla_protocolo("Enviar_sol_cliente(H)", tableH);
 
     MsgHeader md; md.id = ID_DONE; md.a = 0; md.b = 0;
     send_all(cs, &md, sizeof(md));
@@ -674,7 +674,7 @@ void clientHandler(int cs){
 }
 
 int main() {
-    thread(worker_acceptor_thread).detach();
+    thread(hilo_aceptador_workers).detach();
 
     int ls = socket(AF_INET, SOCK_STREAM, 0);
     if (ls < 0) { perror("Conexion"); return 1; }
@@ -696,7 +696,7 @@ int main() {
         int clientSocket = accept(ls, NULL, NULL);
         if (clientSocket < 0) { perror("Aceptar"); continue; }
 
-        thread(clientHandler, clientSocket).detach();
+        thread(manejar_cliente, clientSocket).detach();
     }
 
     return 0;
