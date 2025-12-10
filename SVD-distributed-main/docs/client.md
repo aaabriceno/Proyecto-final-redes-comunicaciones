@@ -5,10 +5,11 @@ Cliente interactivo: genera una matriz `N x N`, la guarda en `matrix.bin`, y la 
 
 ## Flujo principal
 - Menú:
-  - `1) Generar matriz`: crea `matrix.bin` con `N x N` floats aleatorios, actualiza `N_global`.
-  - `2) Enviar matriz`: pide `k`, `p`, calcula `k_total = k+p`, y ejecuta `send_matrix_and_receive_svd`.
-  - `3) View matrix head`: muestra cabeceras de `matrix.bin`, `U.bin`, `VT.bin`, `S.bin`.
-  - `4) Exit`.
+  - `1) Generar matriz aleatoria`: crea `matrix.bin` con `N x N` floats uniformes en [-1,1], semilla variable, actualiza `N_global`.
+  - `2) Cargar matriz desde binario`: lee un archivo cuadrado y lo copia a `matrix.bin`, actualiza `N_global`.
+  - `3) Enviar matriz`: pide `k`, `p`, calcula `k_total = k+p`, y ejecuta `send_matrix_and_receive_svd`.
+  - `4) View matrix head`: muestra cabeceras de `matrix.bin`, `U.bin`, `VT.bin`, `S.bin` (si existen).
+  - `5) Exit`.
 
 ## `send_matrix_and_receive_svd(k_total, k_target)`
 - Pre‑check de workers (mínimo 2):
@@ -23,8 +24,9 @@ Cliente interactivo: genera una matriz `N x N`, la guarda en `matrix.bin`, y la 
   - Cada bloque recibido se guarda en `U.bin`, `S.bin`, `VT.bin` usando `mmap`/`ftruncate`.
 
 ## Utilidades
-- `generate_matrix(N)`: crea `matrix.bin` con floats aleatorios (-1,1).
-- `showMatrix/ showSigma`: lee con `mmap` y muestra primeras filas/valores.
+- `generate_matrix(N)`: crea `matrix.bin` con floats aleatorios uniformes en [-1,1], semilla variable.
+- `cargar_matriz_desde_bin(ruta)`: valida que el binario sea cuadrado y lo copia a `matrix.bin`.
+- `showMatrix/ showSigma`: leen con `mmap`, si el archivo no existe sólo informan.
 
 ## Protocolos usados
 - `ID_H`: consulta disponibilidad de workers al jefe/server.

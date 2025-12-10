@@ -4,7 +4,7 @@
 Rutinas numéricas usadas por workers/server para RSVD.
 
 ## Funciones
-- `generar_omega_mmap(seed, n, k, fileOmega)`: crea matriz aleatoria `n x k` en disco.
+- `generar_omega_mmap(seed, n, k, fileOmega)`: crea matriz aleatoria `n x k` gaussiana N(0,1) en disco.
 - `multiplicar_A_por_Omega_mmap(fileA, rows, cols, fileOmega, k, fileY)`: `Y = A * Omega` en mmap.
 - `descomponer_qr_mmap(fileY, rows, k, fileQi, fileRi)`: QR (Gram-Schmidt) sobre `Y` → `Qi`, `Ri`.
 - `jacobi_autovalores_inplace(A, n, Util, Lambda, max_iter, tol)`: eigen-decomp simétrica (Jacobi) in-place sobre copia de `A`.
