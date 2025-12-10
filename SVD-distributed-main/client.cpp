@@ -20,6 +20,7 @@
 
 using namespace std;
 
+
 string MATRIX_FILE = "matrix.bin";
 uint64_t N_global = 0;
 
