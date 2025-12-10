@@ -12,7 +12,7 @@
 
 using namespace std;
 
-void handle_connection(int sock) {
+void manejar_conexion(int sock) {
     const std::string prefix = "worker_" + std::to_string(getpid()) + "_";
     auto fn = [&](const std::string &name){ return prefix + name; };
     while (true) {
@@ -233,6 +233,6 @@ int main(int argc, char** argv) {
     }
 
     cout << "[worker] connected to server on port " << port << "\n";
-    handle_connection(s);
+    manejar_conexion(s);
     return 0;
 }
