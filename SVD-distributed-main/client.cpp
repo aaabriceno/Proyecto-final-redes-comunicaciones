@@ -16,11 +16,41 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <filesystem>
 
 using namespace std;
 
 string MATRIX_FILE = "matrix.bin";
 uint64_t N_global = 0;
+
+bool cargar_matriz_desde_bin(const string& ruta) {
+    namespace fs = std::filesystem;
+    if (!fs::exists(ruta)) {
+        cerr << "No existe el archivo: " << ruta << "\n";
+        return false;
+    }
+    uint64_t bytes = fs::file_size(ruta);
+    if (bytes % sizeof(float) != 0) {
+        cerr << "El archivo no es múltiplo de sizeof(float)\n";
+        return false;
+    }
+    uint64_t elems = bytes / sizeof(float);
+    uint64_t n = static_cast<uint64_t>(sqrt(static_cast<long double>(elems)));
+    if (n * n != elems) {
+        cerr << "El archivo no representa una matriz cuadrada (elementos="<<elems<<")\n";
+        return false;
+    }
+
+    auto src = mmap_abrir_lectura(ruta, n, n);
+    auto dst = mmap_crear(MATRIX_FILE, n, n);
+    memcpy(dst.data, src.data, bytes);
+    mmap_cerrar(src);
+    mmap_cerrar(dst);
+
+    N_global = n;
+    cout << "Matriz cargada desde " << ruta << " ("<< n <<" x "<< n <<") a " << MATRIX_FILE << "\n";
+    return true;
+}
 
 void generate_matrix(uint64_t N) {
     auto mm = mmap_crear(MATRIX_FILE, N, N);
@@ -194,10 +224,11 @@ void send_matrix_and_receive_svd(int k_total, int k_target) {
 
 void imprimirMenu(){
     cout << "\nMenu:";
-    cout << "\n1) Generar matriz NxN";
-    cout << "\n2) Enviar matriz al servidor para distribuir SVD";
-    cout << "\n3) View matrix head";
-    cout << "\n4) Exit";
+    cout << "\n1) Generar matriz NxN aleatoria";
+    cout << "\n2) Cargar matriz desde archivo binario";
+    cout << "\n3) Enviar matriz al servidor para distribuir SVD";
+    cout << "\n4) View matrix head";
+    cout << "\n5) Exit";
     cout << "\nOption: ";
 }
 
@@ -209,6 +240,10 @@ int main() {
         if (op == 1) {
             cout << "n = "; uint64_t n; cin >> n; generate_matrix(n);
         } else if (op == 2) {
+            cout << "Ruta del archivo binario: ";
+            string ruta; cin >> ruta;
+            cargar_matriz_desde_bin(ruta);
+        } else if (op == 3) {
             cout << "k (valores singulares, k<= n) = "; int k; cin >> k;
             cout << "p (oversampling) = "; int p ; cin >> p;
             int k_total = k + p;
@@ -222,7 +257,7 @@ int main() {
                 continue;
             }
             send_matrix_and_receive_svd(k_total, k);
-        } else if (op == 3) {
+        } else if (op == 4) {
             showMatrix("matrix.bin");
             showMatrix("U.bin");
             showMatrix("VT.bin");

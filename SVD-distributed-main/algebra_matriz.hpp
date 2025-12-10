@@ -12,13 +12,17 @@ void generar_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
     auto O = mmap_crear(fileOmega, n, k);
 
     mt19937 rng(seed);
-    uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    normal_distribution<float> dist(0.0f, 1.0f);
+    //uniforme  la varianza = 0.33 (mas rapido de calcular, menos robusto teoricamente)
+    //gauseana la varianza = 1.0 (teoricamente mejor, mas lento para calcular)
+    // (-1.0.f, 1.0f)  -> uniforme
+    // (0.0f, 1.0f)   -> gaussiana
 
     uint64_t total = (uint64_t)n * k;
     for (uint64_t i = 0; i < total; i++)
         O.data[i] = dist(rng);
     mmap_cerrar(O);
-    cout << "[worker] Omega builded: " << fileOmega << "\n";
+    cout << "[worker] Omega generada (gaussiana) en: " << fileOmega << "\n";
 }
 
 void multiplicar_A_por_Omega_mmap(const string &fileA,int rows, int cols,
