@@ -1,17 +1,13 @@
-// server.cpp
-// Compile: g++ -std=c++17 server.cpp -o server -pthread
 
 #include "../protocolo.hpp"
 #include "../mapeo_matriz.hpp"
 #include "../algebra_matriz.hpp"
-
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -27,7 +23,6 @@ using namespace std;
 vector<int> worker_sockets;
 mutex worker_mtx;
 
-// Imprime en forma de tabla los campos de un protocolo para facilitar el debug.
 void print_protocol_table(const string& protocol_name, const vector<vector<string>>& rows) {
     cout << "\n=================================================================================\n";
     cout << " PROTOCOLO: " << protocol_name << "\n";
@@ -93,7 +88,7 @@ void send_seed_to_worker(int ws, uint64_t seed, uint64_t k) {
     };
     print_protocol_table("ENVIOS(S)", table);
 
-    MsgHeader h(ID_S,seed,k); //h.id = ID_S; h.a = k; h.b = 0;
+    MsgHeader h(ID_S,seed,k);
     send_all(ws, &h, sizeof(h));
 }
 
@@ -209,14 +204,13 @@ void send_B_block_to_worker_mmap(int sock, MMapMatrix& B, int k, int n,
         send_all(sock, row_ptr, bytes);
     }
 }
-// Función NUEVA para recibir C_j correctamente
 void recv_Cj_from_worker_mmap(int ws, const string& fileCj, int k) {
     MsgHeader h;
     recv_all(ws, &h, sizeof(h));
 
 
     vector<vector<string>> table = {
-        {"C_part",    "1 B", "Tipo",             "ID_UI (Reusado)"}, // O el ID que estés usando
+        {"C_part",    "1 B", "Tipo",             "ID_UI (Reusado)"},
         {"matrix_id", "4 B", "Id matriz",        "1"},
         {"rows",      "2 B", "Filas (k)",        to_string(h.a)},
         {"cols",      "2 B", "Columnas (k)",     to_string(h.b)},
@@ -240,7 +234,7 @@ void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
     MMapMatrix Lambdamm = mmap_crear(LambdaFile, k, 1);
 
     vector<float> A((size_t)k * k);
-    for (int i = 0; i < k * k; ++i) A[i] = Cmm.data[i]; //necesario pal jacobo
+    for (int i = 0; i < k * k; ++i) A[i] = Cmm.data[i];
 
     jacobi_autovalores_inplace(A.data(), k, Utilmm.data, Lambdamm.data);
     vector<pair<float,int>>order(k);
@@ -413,7 +407,6 @@ void clientHandler(int cs){
     MsgHeader h;
     if (!recv_all(cs, &h, sizeof(h))) { close(cs); return; }
 
-    // Optional handshake: jefe asks for available workers before sending matrix
     if (h.id == ID_H) {
         uint64_t available = 0;
         {
@@ -425,13 +418,11 @@ void clientHandler(int cs){
         if (!recv_all(cs, &h, sizeof(h))) { close(cs); return; }
     }
 
-    // Expect header ID_A with a = n, b = k
     if (h.id != ID_A) { cerr << "se esperaba un encabezado A\n"; close(cs); return; }
     uint64_t n = h.a;
     uint64_t k_full = h.b; // k + p (oversampling)
     cerr << "[server] randomized SVD con n = "<<n<<" k_full="<<k_full<<"\n";
 
-    // prepare file server_matrix.bin
     string fname = "server_matrix.bin";
     uint64_t elems = n * n;
     size_t bytes = (size_t)elems * sizeof(float);
@@ -463,7 +454,6 @@ void clientHandler(int cs){
     int k_req = (int)k_target;
     int k = (int)k_full;
 
-    // Expect the boss to provide the random seed (ID_S). If missing, keep default.
     uint64_t seed = 1234567;
     MsgHeader seedMsg;
     if (recv_all(cs, &seedMsg, sizeof(seedMsg)) && seedMsg.id == ID_S) {
@@ -490,7 +480,6 @@ void clientHandler(int cs){
         nrows[i] = base_rows + (i < (int)extra ? 1 : 0);
         cur += nrows[i];
     }
-    // Partición por columnas (coherente con B y C)
     uint64_t base_cols = n / W;
     uint64_t extra_cols = n % W;
     uint64_t curc = 0;
@@ -500,7 +489,6 @@ void clientHandler(int cs){
         curc += ncols[i];
     }
 
-    // 1) send Ai to each worker
     for (int i = 0; i < W; ++i) {
         uint64_t rowsi = nrows[i];
         if (rowsi == 0) continue;
@@ -509,13 +497,11 @@ void clientHandler(int cs){
     }
     cerr << "[server->workers] matriz Ai enviada a los trabajadores\n";
 
-    // 2) send seed and k
     for (int i = 0; i < W; ++i) {
         send_seed_to_worker(ws[i], seed, k);
     }
     cerr << "[server->workers] se enviaron la semilla y el valor k\n";
 
-    // 3) receive R_i from each worker
     vector<string> Ri_files(W);
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
@@ -524,13 +510,10 @@ void clientHandler(int cs){
         cout<<"[workers->server] se recibió R_"<<i<<" del trabajador "<<i<<"\n";
     }
 
-    
-    // 4) TSQR mmap
     build_Rstack_mmap(Ri_files,W,k,"Rstack.bin");
     descomponer_qr_mmap("Rstack.bin", W*k, k, "Qr.bin", "Rglobal.bin");
     cout << "[server] R_stack y TSQR completados\n";
 
-    // 5) send Qr_i to each worker
     vector<string> fileQri(W);
     extract_Qr_blocks("Qr.bin", W, k, fileQri);
     for (int i = 0; i < W; ++i) {
@@ -539,7 +522,6 @@ void clientHandler(int cs){
         cout << "[server->workers] se envió Qglbal_"<<i<<" al trabajador " << i << "\n";
     }
 
-    // 6) receive B_i from workers
     vector<string> fileBi_list(W);
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
@@ -550,14 +532,11 @@ void clientHandler(int cs){
         cout << "[workers->server] se recibió B_"<<i<<" del trabajador " << i << " (k x n)\n";
     }
 
-    
-    // 7) Construct B = [B1 B2 ...] horizontally (k x n)
     assemble_B_mmap(fileBi_list, nrows, W, k, n, "B_final.bin");
     cout << "[server] ensambló B (k x n) usando mmap\n";
 
     auto Bmap = mmap_abrir_lectura("B_final.bin", k, n);
 
-    // 8) Enviar Bj a cada worker usando mmap (por columnas)
     for (int j = 0; j < W; ++j) {
         if (ncols[j] == 0) continue;
         send_B_block_to_worker_mmap(ws[j],Bmap,k, n, start_cols[j], ncols[j]);
@@ -565,8 +544,6 @@ void clientHandler(int cs){
     }
     mmap_cerrar(Bmap);
 
-
-    // 9) receive C_j from workers and sum to C
     vector<string> fileCj_list(W);
 
     for (int j = 0; j < W; ++j) {
@@ -616,7 +593,6 @@ void clientHandler(int cs){
 
     assemble_U_mmap(Ui_files, nrows, W, k, n, "U_final.bin");
 
-    // Truncate to requested k (top-k) if oversampling was used
     string U_to_send = "U_final.bin";
     string Vt_to_send = "Vt_final.bin";
     string Sigma_to_send = "Sigma.bin";
@@ -625,7 +601,6 @@ void clientHandler(int cs){
         Vt_to_send = "Vt_final_k.bin";
         Sigma_to_send = "Sigma_k.bin";
 
-        // U: n x k_req
         {
             MMapMatrix Ufull = mmap_abrir_lectura("U_final.bin", n, k);
             MMapMatrix Utrim = mmap_crear(U_to_send, n, k_req);
@@ -638,7 +613,6 @@ void clientHandler(int cs){
             mmap_cerrar(Utrim);
         }
 
-        // Vt: k_req x n (take first k_req rows)
         {
             MMapMatrix Vfull = mmap_abrir_lectura("Vt_final.bin", k, n);
             MMapMatrix Vtrim = mmap_crear(Vt_to_send, k_req, n);
@@ -651,7 +625,6 @@ void clientHandler(int cs){
             mmap_cerrar(Vtrim);
         }
 
-        // Sigma: first k_req
         {
             MMapMatrix Sfull = mmap_abrir_lectura("Sigma.bin", k, 1);
             MMapMatrix Strim = mmap_crear(Sigma_to_send, k_req, 1);
@@ -671,7 +644,6 @@ void clientHandler(int cs){
     };
     print_protocol_table("Enviar_resultadoFinal(F)", tableF);
 
-    // Enviar U (header + stream fichero U.bin)
     {
         MsgHeader h(ID_UT,n,k_req);
         send_all(cs,&h,sizeof(h));

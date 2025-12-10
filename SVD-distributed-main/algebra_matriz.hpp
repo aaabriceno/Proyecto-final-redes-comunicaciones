@@ -13,11 +13,6 @@ void generar_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
 
     mt19937 rng(seed);
     normal_distribution<float> dist(0.0f, 1.0f);
-    //uniforme  la varianza = 0.33 (mas rapido de calcular, menos robusto teoricamente)
-    //gauseana la varianza = 1.0 (teoricamente mejor, mas lento para calcular)
-    // (-1.0.f, 1.0f)  -> uniforme
-    // (0.0f, 1.0f)   -> gaussiana
-
     uint64_t total = (uint64_t)n * k;
     for (uint64_t i = 0; i < total; i++)
         O.data[i] = dist(rng);
@@ -65,7 +60,6 @@ void descomponer_qr_mmap(const string &fileY,int rows, int k,
         for (int i = 0; i < rows; ++i)
             v[i] = Y.data[(uint64_t)i * k + j];
 
-        // --- Proyecciones ---
         for (int i = 0; i < j; ++i) {
             float rij = 0;
 
@@ -104,11 +98,9 @@ void descomponer_qr_mmap(const string &fileY,int rows, int k,
 
 inline void jacobi_autovalores_inplace(float* A, int n, float* Util, float* Lambda,
                                  int max_iter = 100, float tol = 1e-7f){
-    // Initialize Util = I
     for (int i = 0; i < n * n; ++i) Util[i] = 0.0f;
     for (int i = 0; i < n; ++i) Util[i * n + i] = 1.0f;
 
-    // Work on A_copy in-place: copy A to a local buffer since caller may pass mmap read-only
     vector<float> M((size_t)n * n);
     for (int i = 0; i < n * n; ++i) M[i] = A[i];
 
@@ -159,7 +151,6 @@ inline void jacobi_autovalores_inplace(float* A, int n, float* Util, float* Lamb
         }
     }
 
-    // write eigenvalues (diagonal) into Lambda
     for (int i = 0; i < n; ++i) Lambda[i] = M[i * n + i];
 }
 
@@ -172,20 +163,16 @@ void calcular_Vj_mmap(const string &UtilFile,const string &SigmaInvFile,
     MMapMatrix Bi = mmap_abrir_lectura(BiFile, k, ncols);
     MMapMatrix Vj = mmap_crear(VjOutFile, k, ncols);
 
-    // Compute M = Util^T * Bi  -> result k x ncols (store into Vj temporarily)
-    // Util^T: (k x k), Bi: (k x ncols)
-    for (int i = 0; i < k; ++i) {          // row of Util^T (i) == column of Util
+    for (int i = 0; i < k; ++i) {       
         for (int j = 0; j < ncols; ++j) {
             float s = 0.0f;
             for (int t = 0; t < k; ++t) {
-                // Util^T[i,t] = Util[t,i]
                 s += Util.data[(size_t)t * k + i] * Bi.data[(size_t)t * ncols + j];
             }
             Vj.data[(size_t)i * ncols + j] = s;
         }
     }
 
-    // Multiplicar cada fila por su correspondiente valor en SigmaInv: Vj[i, :] *= SigmaInv[i]
     for (int i = 0; i < k; ++i) {
         float scale = SigmaInv.data[i];
         if (scale == 1.0f) continue;
@@ -207,9 +194,6 @@ void calcular_Ui_mmap(const string &Qi_file,const string &Utilde_file,
     MMapMatrix Qmm = mmap_abrir_lectura(Qi_file, mi, k);
     MMapMatrix Utilde = mmap_abrir_lectura(Utilde_file, k, k);
     MMapMatrix Uimm = mmap_crear(Ui_file, mi, k);
-
-    // --- Multiplicación U_i = Q_i * Utilde ---
-    // U_i (m_i x k) = Q_i (m_i x k) * Utilde (k x k)
 
     for (int r = 0; r < mi; ++r){
         float* qrow = &Qmm.data[(size_t)r * k];

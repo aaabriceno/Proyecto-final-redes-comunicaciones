@@ -1,8 +1,6 @@
 #include "../protocolo.hpp"
 #include "../mapeo_matriz.hpp"
 #include "../algebra_matriz.hpp"
-
-
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -205,78 +203,6 @@ void handle_connection(int sock) {
 
             std::cout << "[worker -> server] sent U_i\n";                
 
-            /*
-            while (true) {
-
-                MsgHeader mh;
-                if (!recv_all(sock, &mh, sizeof(mh))) { cerr << "[worker] server closed mid-flow\n"; return; }
-                if (mh.id == ID_D) {
-                    // server sends (k x colsblock) as header a=k b=colsblock
-                    int krecv = (int)mh.a;
-                    int colsblock = (int)mh.b;
-                    vector<float> Bj((size_t)krecv * colsblock);
-                    recv_all(sock, Bj.data(), Bj.size()*sizeof(float));
-                    // compute Cj = Bj * Bj^T (k x k)
-                    vector<float> Cj = compute_Cj(Bj, krecv, colsblock);
-                    // send Cj back with ID_C
-                    MsgHeader mc; mc.id = ID_C; mc.a = krecv; mc.b = krecv;
-                    send_all(sock, &mc, sizeof(mc));
-                    send_all(sock, Cj.data(), (size_t)krecv*krecv*sizeof(float));
-                    cout << "[worker] processed D -> sent Cj\n";
-                } else if (mh.id == ID_UT) {
-                    // server sends Utilde (k x k) and Sigma^{-1 (k)}
-                    uint64_t krecv = mh.a;
-                    uint64_t dummy = mh.b; // maybe zero
-                    vector<float> Util((size_t)krecv * krecv);
-                    recv_all(sock, Util.data(), Util.size()*sizeof(float));
-                    vector<float> SigmaInv((size_t)krecv);
-                    recv_all(sock, SigmaInv.data(), SigmaInv.size()*sizeof(float));
-                    // Compute Vj^T = Sigma^{-1} * Util^T * B_i
-                    // First compute M = Util^T * B_i  => (k x n)
-                    vector<float> M((size_t)krecv * Bi.size() / (size_t)krecv); // k x n
-                    int ncols = Bi.size() / (size_t)krecv;
-                    for (int i = 0; i < krecv; ++i)
-                        for (int j = 0; j < ncols; ++j) {
-                            float s = 0;
-                            for (int t = 0; t < krecv; ++t)
-                                s += Util[(size_t)t * krecv + i] * Bi[(size_t)t * ncols + j];
-                            M[(size_t)i * ncols + j] = s;
-                        }
-                    // multiply by Sigma^{-1}: each row i scaled
-                    for (int i = 0; i < krecv; ++i)
-                        for (int j = 0; j < ncols; ++j)
-                            M[(size_t)i * ncols + j] *= SigmaInv[i];
-
-                    // send V_j^T with header ID_V: a=k b=ncols
-                    MsgHeader mv; mv.id = ID_V; mv.a = krecv; mv.b = ncols;
-                    send_all(sock, &mv, sizeof(mv));
-                    send_all(sock, M.data(), (size_t)krecv * ncols * sizeof(float));
-                    cout << "[worker] sent V_j^T to server\n";
-                } else if (mh.id == ID_UI) {
-                    // server requests U_i: sends Utilde (k x k)
-                    uint64_t krecv = mh.a;
-                    vector<float> Util((size_t)krecv * krecv);
-                    recv_all(sock, Util.data(), Util.size()*sizeof(float));
-                    // compute U_i = Qf * Util   => rows_i x k
-                    vector<float> Ui((size_t)rows_i * krecv, 0.0f);
-                    for (size_t r = 0; r < (size_t)rows_i; ++r)
-                        for (size_t c = 0; c < (size_t)krecv; ++c)
-                            for (size_t t = 0; t < (size_t)krecv; ++t)
-                                Ui[r*krecv + c] += Qf[r*krecv + t] * Util[t*krecv + c];
-                    // send Ui back
-                    MsgHeader mu; mu.id = ID_UI; mu.a = rows_i; mu.b = krecv;
-                    send_all(sock, &mu, sizeof(mu));
-                    send_all(sock, Ui.data(), (size_t)rows_i * krecv * sizeof(float));
-                    cout << "[worker] sent U_i to server\n";
-                } else if (mh.id == ID_DONE) {
-                    cout << "[worker] received DONE from server stage\n";
-                    break; // exit inner loop and wait for next client block or close
-                } else {
-                    cerr << "[worker] unknown message id: " << mh.id << "\n";
-                    break;
-                }
-            
-            } */
         } else {
             cerr << "[worker] unknown header id: " << h.id << "\n";
             break;

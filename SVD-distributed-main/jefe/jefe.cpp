@@ -1,17 +1,12 @@
-// jefe.cpp
-// Acts as a front controller: accepts the client matrix, chooses the seed,
-// forwards the request to the worker-facing server, and relays the results back.
 
 #include "../protocolo.hpp"
 #include "../mapeo_matriz.hpp"
-
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -103,10 +98,10 @@ uint64_t choose_seed() {
             + (seed << 6) + (seed >> 2);
     return seed;
 }
-} // namespace
+}
 
 void handle_client(int cs) {
-    const uint64_t min_workers = 1; // el cliente decide si procede con 1 o espera por más
+    const uint64_t min_workers = 1;
     auto send_done = [&](int sock){
         MsgHeader d(ID_DONE,0,0);
         send_all(sock, &d, sizeof(d));
@@ -120,7 +115,6 @@ void handle_client(int cs) {
         return;
     }
 
-    // Si el cliente pide disponibilidad primero (ID_H), respondemos y seguimos esperando ID_A
     if (h.id == ID_H) {
         int ss_chk = connect_to_dispatch_server();
         if (ss_chk < 0) { send_done(cs); close(cs); return; }
@@ -137,7 +131,6 @@ void handle_client(int cs) {
         send_all(cs, &resp, sizeof(resp));
         close(ss_chk);
 
-        // Esperar el verdadero ID_A
         if (!recv_all(cs, &h, sizeof(h)) || h.id != ID_A) {
             cerr << "[jefe] encabezado invalido del cliente tras handshake\n";
             send_done(cs);
@@ -172,7 +165,6 @@ void handle_client(int cs) {
     }
     cerr << "[cliente->jefe] recibida matriz (" << bytes << " bytes)\n";
 
-    // Recibir k solicitado (sin oversampling) desde el cliente
     uint64_t k_target = k_full;
     MsgHeader hk_from_client;
     if (recv_all(cs, &hk_from_client, sizeof(hk_from_client)) && hk_from_client.id == ID_K) {
@@ -189,7 +181,6 @@ void handle_client(int cs) {
         return;
     }
 
-    // Handshake de disponibilidad con el server (antes de enviar la matriz)
     MsgHeader availReq(ID_H, min_workers, 0);
     MsgHeader availResp{};
     const int max_attempts = 3;

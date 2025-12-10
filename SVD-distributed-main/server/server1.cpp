@@ -1,17 +1,13 @@
-// server.cpp
-// Compile: g++ -std=c++17 server.cpp -o server -pthread
+
 #include "../protocolo.hpp"
 #include "../mapeo_matriz.hpp"
 #include "../algebra_matriz.hpp"
-
-
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
 #include <iostream>
 #include <thread>
 #include <vector>

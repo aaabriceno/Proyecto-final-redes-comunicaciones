@@ -11,7 +11,6 @@
 
 static const int CLIENT_PORT = 45000;
 static const int WORKER_PORT = 45001;
-// New: jefe (boss) forwards work to the worker-facing server over this port.
 static const int BOSS_SERVER_PORT = 45002;
 static const size_t CHUNK = 64*1024; // 64 KB
 
