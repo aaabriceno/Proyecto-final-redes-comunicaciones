@@ -8,7 +8,7 @@
 #include <cassert>
 using namespace std;
 
-void generate_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
+void generar_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
     auto O = mmap_crear(fileOmega, n, k);
 
     mt19937 rng(seed);
@@ -21,7 +21,7 @@ void generate_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
     cout << "[worker] Omega builded: " << fileOmega << "\n";
 }
 
-void matmul_A_Omega_mmap(const string &fileA,int rows, int cols,
+void multiplicar_A_por_Omega_mmap(const string &fileA,int rows, int cols,
                          const string &fileOmega,int k,
                          const string &fileY){
 
@@ -47,7 +47,7 @@ void matmul_A_Omega_mmap(const string &fileA,int rows, int cols,
 }
 
 
-void qr_mmap(const string &fileY,int rows, int k,
+void descomponer_qr_mmap(const string &fileY,int rows, int k,
                  const string &fileQi,const string &fileRi){
     auto Y = mmap_abrir_lectura(fileY, rows, k);
     auto Q = mmap_crear(fileQi, rows, k);
@@ -98,7 +98,7 @@ void qr_mmap(const string &fileY,int rows, int k,
     mmap_cerrar(R);
 }
 
-inline void jacobi_eigen_inplace(float* A, int n, float* Util, float* Lambda,
+inline void jacobi_autovalores_inplace(float* A, int n, float* Util, float* Lambda,
                                  int max_iter = 100, float tol = 1e-7f){
     // Initialize Util = I
     for (int i = 0; i < n * n; ++i) Util[i] = 0.0f;
@@ -160,7 +160,7 @@ inline void jacobi_eigen_inplace(float* A, int n, float* Util, float* Lambda,
 }
 
 
-void compute_Vj_mmap(const string &UtilFile,const string &SigmaInvFile,
+void calcular_Vj_mmap(const string &UtilFile,const string &SigmaInvFile,
     const string &BiFile,const string &VjOutFile,int k, int ncols){
 
     MMapMatrix Util = mmap_abrir_lectura(UtilFile, k, k);
@@ -197,7 +197,7 @@ void compute_Vj_mmap(const string &UtilFile,const string &SigmaInvFile,
     mmap_cerrar(Vj);
 }
 
-void compute_Ui_mmap(const string &Qi_file,const string &Utilde_file,
+void calcular_Ui_mmap(const string &Qi_file,const string &Utilde_file,
     const string &Ui_file,int mi, int k){
 
     MMapMatrix Qmm = mmap_abrir_lectura(Qi_file, mi, k);

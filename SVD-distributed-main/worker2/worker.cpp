@@ -54,10 +54,10 @@ void handle_connection(int sock) {
             uint64_t k = hs.b;
             cout << "[server->worker] seed="<<seed<<" k="<<k<<"\n";
 
-            generate_omega_mmap(seed, n, k, fn("Omega.bin"));
-            matmul_A_Omega_mmap(fn("Ai.bin"), rows_i, n, fn("Omega.bin"), k, fn("Y.bin"));
+            generar_omega_mmap(seed, n, k, fn("Omega.bin"));
+            multiplicar_A_por_Omega_mmap(fn("Ai.bin"), rows_i, n, fn("Omega.bin"), k, fn("Y.bin"));
 
-            qr_mmap(fn("Y.bin"), rows_i, k, fn("Qi.bin"), fn("Ri.bin"));
+            descomponer_qr_mmap(fn("Y.bin"), rows_i, k, fn("Qi.bin"), fn("Ri.bin"));
 
             {
                 auto Rm = mmap_abrir_lectura(fn("Ri.bin"), k, k);
@@ -187,7 +187,7 @@ void handle_connection(int sock) {
                 cout << "[server->worker] received Utilde and SigmaInv from server\n";           
             }
 
-            compute_Vj_mmap(fn("Utilde.bin"),fn("SigmaInv.bin"),fn("Bj.bin"),fn("Vj.bin"),k,cols_j);
+            calcular_Vj_mmap(fn("Utilde.bin"),fn("SigmaInv.bin"),fn("Bj.bin"),fn("Vj.bin"),k,cols_j);
 
             {
                 auto Vj = mmap_abrir_lectura(fn("Vj.bin"), k, cols_j);
@@ -196,7 +196,7 @@ void handle_connection(int sock) {
                 cout << "[worker->server] send V_j to server\n";
             }
 
-            compute_Ui_mmap(fn("Qfinal.bin"),fn("Utilde.bin"),fn("Ui.bin"),rows_i,k);
+            calcular_Ui_mmap(fn("Qfinal.bin"),fn("Utilde.bin"),fn("Ui.bin"),rows_i,k);
 
             send_all(sock, &h, sizeof(h));
             MMapMatrix Ui = mmap_abrir_lectura(fn("Ui.bin"), rows_i, k);

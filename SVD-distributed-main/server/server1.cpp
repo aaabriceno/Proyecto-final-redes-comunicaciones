@@ -208,7 +208,7 @@ void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
     MMapMatrix Lambdamm = mmap_crear(LambdaFile, k, 1);
     vector<float> A((size_t)k * k);
     for (int i = 0; i < k * k; ++i) A[i] = Cmm.data[i];
-    jacobi_eigen_inplace(A.data(), k, Utilmm.data, Lambdamm.data);
+    jacobi_autovalores_inplace(A.data(), k, Utilmm.data, Lambdamm.data);
     vector<pair<float,int>>order(k);
     for (int i = 0; i < k; ++i) order[i] = {Lambdamm.data[i], i};
     sort(order.begin(), order.end(),
@@ -450,7 +450,7 @@ void clientHandler(int cs){
     
     // 4) TSQR mmap
     build_Rstack_mmap(Ri_files,W,k,"Rstack.bin");
-    qr_mmap("Rstack.bin", W*k, k, "Qr.bin", "Rglobal.bin");
+    descomponer_qr_mmap("Rstack.bin", W*k, k, "Qr.bin", "Rglobal.bin");
     cout << "[server] R_stack & TSQR complete\n";
 
     // 5) send Qr_i to each worker
