@@ -3,7 +3,7 @@
 ## Propósito
 Orquestador distribuido: recibe A desde el jefe, reparte trabajo a los workers, ensambla resultados y devuelve U, S, V^T al jefe. Usa `mmap` para manejar matrices en disco.
 
-## Flujo de `clientHandler`
+## Flujo de `manejar_cliente`
 1. Handshake opcional: si llega `ID_H`, responde con número de workers conectados.
 2. Recibe `ID_A` con `n`, `k_full` (k+p). Mappea `server_matrix.bin`, recibe A completa en disco.
 3. Recibe opcional `ID_K` (k objetivo) y `ID_S` (semilla; si no, usa valor por defecto).
@@ -23,17 +23,17 @@ Orquestador distribuido: recibe A desde el jefe, reparte trabajo a los workers, 
 8. Envía al cliente U (`ID_UT`), S (`ID_S`), V^T (`ID_VT`), y `ID_DONE`.
 
 ## Funciones principales
-- `worker_acceptor_thread()`: acepta conexiones de workers y guarda sockets.
-- `send_Ai_to_worker`, `send_seed_to_worker`.
-- `recv_R_from_worker_mmap`, `build_Rstack_mmap`, `qr_mmap` (TSQR).
-- `send_Qr_to_worker`.
-- `recv_Bi_from_worker_mmap`, `assemble_B_mmap`.
-- `send_B_block_to_worker_mmap` (Bj por columnas).
-- `recv_Cj_from_worker_mmap`, ensamblar C con `assemble_B_mmap`.
-- `eigendecompose_C_mmap`, `sigma_and_inv_mmap`, `send_Util_Sinv_to_worker_mmap`.
-- `recv_Vj_from_worker_mmap`, `assemble_Vt_mmap`.
-- `recv_Ui_from_worker_mmap`, `assemble_U_mmap`.
-- `send_Vt_to_client`, `send_Sigma_mmap`.
+- `hilo_aceptador_workers()`: acepta conexiones de workers y guarda sockets.
+- `enviar_Ai_a_worker`, `enviar_semilla_a_worker`.
+- `recibir_R_de_worker_mmap`, `construir_Rstack_mmap`, `descomponer_qr_mmap` (TSQR).
+- `enviar_Qr_a_worker`.
+- `recibir_Bi_de_worker_mmap`, `ensamblar_B_mmap`.
+- `enviar_bloque_B_a_worker_mmap` (Bj por columnas).
+- `recibir_Cj_de_worker_mmap`, ensamblar C con `ensamblar_B_mmap`.
+- `descomponer_C_mmap`, `calcular_sigma_y_inv_mmap`, `enviar_Util_Sinv_a_worker_mmap`.
+- `recibir_Vj_de_worker_mmap`, `ensamblar_Vt_mmap`.
+- `recibir_Ui_de_worker_mmap`, `ensamblar_U_mmap`.
+- `enviar_Vt_a_cliente`, `enviar_Sigma_mmap`.
 
 ## Protocolos y tablas
 - Usa `print_protocol_table` para mostrar campos de mensajes (A, S, R_i, B_i, V_j, U_i, finales).
