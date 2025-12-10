@@ -155,7 +155,7 @@ void handle_client(int cs) {
 
     string matrixFile = "jefe_matrix_" + to_string(cid) + ".bin";
     size_t bytes = (size_t)n * n * sizeof(float);
-    MMapMatrix mm = mmap_create(matrixFile, n, n);
+    MMapMatrix mm = mmap_crear(matrixFile, n, n);
 
     size_t rec = 0;
     char* base = reinterpret_cast<char*>(mm.data);
@@ -163,7 +163,7 @@ void handle_client(int cs) {
         size_t chunk = min(CHUNK, bytes - rec);
         if (!recv_all(cs, base + rec, chunk)) {
             cerr << "[jefe] fallo recibiendo matriz del cliente\n";
-            mmap_close(mm);
+            mmap_cerrar(mm);
             close(cs);
             unlink(matrixFile.c_str());
             return;
@@ -183,7 +183,7 @@ void handle_client(int cs) {
 
     int ss = connect_to_dispatch_server();
     if (ss < 0) {
-        mmap_close(mm);
+        mmap_cerrar(mm);
         close(cs);
         unlink(matrixFile.c_str());
         return;
@@ -201,7 +201,7 @@ void handle_client(int cs) {
             availResp.id != ID_H) {
             cerr << "[jefe] fallo en handshake de disponibilidad con el server\n";
             send_done(cs);
-            mmap_close(mm);
+            mmap_cerrar(mm);
             close(ss);
             close(cs);
             unlink(matrixFile.c_str());
@@ -220,7 +220,7 @@ void handle_client(int cs) {
     if (!enough_workers) {
         cerr << "[jefe] no se alcanzó el mínimo de workers tras "<<max_attempts<<" intentos (disp="<<availResp.a<<")\n";
         send_done(cs);
-        mmap_close(mm);
+        mmap_cerrar(mm);
         close(ss);
         close(cs);
         unlink(matrixFile.c_str());
@@ -230,7 +230,7 @@ void handle_client(int cs) {
     if (!forward_matrix(ss, mm, n, k_full)) {
         cerr << "[jefe] fallo enviando matriz al servidor\n";
         send_done(cs);
-        mmap_close(mm);
+        mmap_cerrar(mm);
         close(ss);
         close(cs);
         unlink(matrixFile.c_str());
@@ -246,7 +246,7 @@ void handle_client(int cs) {
     send_all(ss, &seedMsg, sizeof(seedMsg));
     cerr << "[jefe->server] enviado seed=" << seed << "\n";
 
-    mmap_close(mm);
+    mmap_cerrar(mm);
     unlink(matrixFile.c_str());
 
     if (!relay_results(ss, cs)) {

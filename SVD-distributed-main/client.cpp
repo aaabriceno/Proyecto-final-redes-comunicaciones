@@ -23,13 +23,13 @@ string MATRIX_FILE = "matrix.bin";
 uint64_t N_global = 0;
 
 void generate_matrix(uint64_t N) {
-    auto mm = mmap_create(MATRIX_FILE, N, N);
+    auto mm = mmap_crear(MATRIX_FILE, N, N);
     std::mt19937 rng((uint32_t)12345);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
     uint64_t elems = N * (uint64_t)N;
     for (uint64_t i = 0; i < elems; ++i) mm.data[i] = dist(rng);
     msync(mm.data, mm.bytes, MS_SYNC);
-    mmap_close(mm);
+    mmap_cerrar(mm);
     N_global = N;
     cout << "Matriz Generada " << N << "x" << N << " en archivo " << MATRIX_FILE << "\n";
 }
@@ -43,7 +43,7 @@ void showMatrix(const string &filename,uint64_t max_rows = 5,uint64_t max_cols =
     cout << "========= " << filename << " (max "
          << max_rows << "x" << max_cols << ") =========\n";
 
-    auto mm = mmap_open_read(filename, N_global, N_global);
+    auto mm = mmap_abrir_lectura(filename, N_global, N_global);
 
     for (uint64_t r = 0; r < min(max_rows, N_global); ++r) {
         for (uint64_t c = 0; c < min(max_cols, N_global); ++c) {
@@ -53,7 +53,7 @@ void showMatrix(const string &filename,uint64_t max_rows = 5,uint64_t max_cols =
     }
     cout << "\n";
 
-    mmap_close(mm);
+    mmap_cerrar(mm);
 }
 
 void showSigma(const string &filename, uint64_t max_vals = 5){
@@ -63,14 +63,14 @@ void showSigma(const string &filename, uint64_t max_vals = 5){
     }
 
     cout << "========= SIGMA (S) (max " << max_vals << ") =========\n";
-    auto mm = mmap_open_read(filename, N_global, 1);  // vector de tamaño N
+    auto mm = mmap_abrir_lectura(filename, N_global, 1);  // vector de tamaño N
 
     for (uint64_t i = 0; i < min(max_vals, N_global); ++i) {
         cout << mm.data[i] << "\t";
     }
     cout << "\n\n";
 
-    mmap_close(mm);
+    mmap_cerrar(mm);
 }
 
 void send_matrix_and_receive_svd(int k_total, int k_target) {
@@ -120,7 +120,7 @@ void send_matrix_and_receive_svd(int k_total, int k_target) {
     if (!send_all(sock, &h, sizeof(h))) { cerr << "Error al enviar el encabezado\n"; close(sock); return; }
 
     // stream matrix in chunks from mmap
-    auto mm = mmap_open_read(MATRIX_FILE, N_global, N_global);
+    auto mm = mmap_abrir_lectura(MATRIX_FILE, N_global, N_global);
     size_t bytes = mm.bytes;
     size_t sent = 0;
     const char* p = (const char*)mm.data;

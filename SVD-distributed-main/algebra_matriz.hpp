@@ -9,7 +9,7 @@
 using namespace std;
 
 void generate_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
-    auto O = mmap_create(fileOmega, n, k);
+    auto O = mmap_crear(fileOmega, n, k);
 
     mt19937 rng(seed);
     uniform_real_distribution<float> dist(-1.0f, 1.0f);
@@ -17,7 +17,7 @@ void generate_omega_mmap(uint64_t seed, int n, int k, const string &fileOmega) {
     uint64_t total = (uint64_t)n * k;
     for (uint64_t i = 0; i < total; i++)
         O.data[i] = dist(rng);
-    mmap_close(O);
+    mmap_cerrar(O);
     cout << "[worker] Omega builded: " << fileOmega << "\n";
 }
 
@@ -25,9 +25,9 @@ void matmul_A_Omega_mmap(const string &fileA,int rows, int cols,
                          const string &fileOmega,int k,
                          const string &fileY){
 
-    auto A = mmap_open_read(fileA, rows, cols);
-    auto O = mmap_open_read(fileOmega, cols, k);
-    auto Y = mmap_create(fileY, rows, k);
+    auto A = mmap_abrir_lectura(fileA, rows, cols);
+    auto O = mmap_abrir_lectura(fileOmega, cols, k);
+    auto Y = mmap_crear(fileY, rows, k);
 
     for (int r = 0; r < rows; ++r) {
         const float* arow = A.data + (uint64_t)r * cols;
@@ -39,9 +39,9 @@ void matmul_A_Omega_mmap(const string &fileA,int rows, int cols,
         }
     }
 
-    mmap_close(A);
-    mmap_close(O);
-    mmap_close(Y);
+    mmap_cerrar(A);
+    mmap_cerrar(O);
+    mmap_cerrar(Y);
 
     cout << "[worker] Y builded: " << fileY << "\n";
 }
@@ -49,9 +49,9 @@ void matmul_A_Omega_mmap(const string &fileA,int rows, int cols,
 
 void qr_mmap(const string &fileY,int rows, int k,
                  const string &fileQi,const string &fileRi){
-    auto Y = mmap_open_read(fileY, rows, k);
-    auto Q = mmap_create(fileQi, rows, k);
-    auto R = mmap_create(fileRi, k, k);
+    auto Y = mmap_abrir_lectura(fileY, rows, k);
+    auto Q = mmap_crear(fileQi, rows, k);
+    auto R = mmap_crear(fileRi, k, k);
 
     vector<float> v(rows);
 
@@ -93,9 +93,9 @@ void qr_mmap(const string &fileY,int rows, int k,
         }
     }
 
-    mmap_close(Y);
-    mmap_close(Q);
-    mmap_close(R);
+    mmap_cerrar(Y);
+    mmap_cerrar(Q);
+    mmap_cerrar(R);
 }
 
 inline void jacobi_eigen_inplace(float* A, int n, float* Util, float* Lambda,
@@ -163,10 +163,10 @@ inline void jacobi_eigen_inplace(float* A, int n, float* Util, float* Lambda,
 void compute_Vj_mmap(const string &UtilFile,const string &SigmaInvFile,
     const string &BiFile,const string &VjOutFile,int k, int ncols){
 
-    MMapMatrix Util = mmap_open_read(UtilFile, k, k);
-    MMapMatrix SigmaInv = mmap_open_read(SigmaInvFile, k, 1);
-    MMapMatrix Bi = mmap_open_read(BiFile, k, ncols);
-    MMapMatrix Vj = mmap_create(VjOutFile, k, ncols);
+    MMapMatrix Util = mmap_abrir_lectura(UtilFile, k, k);
+    MMapMatrix SigmaInv = mmap_abrir_lectura(SigmaInvFile, k, 1);
+    MMapMatrix Bi = mmap_abrir_lectura(BiFile, k, ncols);
+    MMapMatrix Vj = mmap_crear(VjOutFile, k, ncols);
 
     // Compute M = Util^T * Bi  -> result k x ncols (store into Vj temporarily)
     // Util^T: (k x k), Bi: (k x ncols)
@@ -191,18 +191,18 @@ void compute_Vj_mmap(const string &UtilFile,const string &SigmaInvFile,
 
     msync(Vj.data, Vj.bytes, MS_SYNC);
 
-    mmap_close(Util);
-    mmap_close(SigmaInv);
-    mmap_close(Bi);
-    mmap_close(Vj);
+    mmap_cerrar(Util);
+    mmap_cerrar(SigmaInv);
+    mmap_cerrar(Bi);
+    mmap_cerrar(Vj);
 }
 
 void compute_Ui_mmap(const string &Qi_file,const string &Utilde_file,
     const string &Ui_file,int mi, int k){
 
-    MMapMatrix Qmm = mmap_open_read(Qi_file, mi, k);
-    MMapMatrix Utilde = mmap_open_read(Utilde_file, k, k);
-    MMapMatrix Uimm = mmap_create(Ui_file, mi, k);
+    MMapMatrix Qmm = mmap_abrir_lectura(Qi_file, mi, k);
+    MMapMatrix Utilde = mmap_abrir_lectura(Utilde_file, k, k);
+    MMapMatrix Uimm = mmap_crear(Ui_file, mi, k);
 
     // --- Multiplicación U_i = Q_i * Utilde ---
     // U_i (m_i x k) = Q_i (m_i x k) * Utilde (k x k)
@@ -221,9 +221,9 @@ void compute_Ui_mmap(const string &Qi_file,const string &Utilde_file,
         }
     }
 
-    mmap_close(Qmm);
-    mmap_close(Utilde);
-    mmap_close(Uimm);
+    mmap_cerrar(Qmm);
+    mmap_cerrar(Utilde);
+    mmap_cerrar(Uimm);
 
     cout << "[worker] computed Ui = Q_i * Utilde and stored in "
     << Ui_file << " (" << mi << " x " << k << ")\n";

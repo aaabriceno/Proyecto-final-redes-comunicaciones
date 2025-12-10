@@ -110,45 +110,45 @@ void recv_R_from_worker_mmap(int ws, const string &fileRi, uint64_t k){
     };
     print_protocol_table("ENVIA_RESULTADOSR_i(C)", table);
 
-    auto Ri = mmap_create(fileRi, k, k);
+    auto Ri = mmap_crear(fileRi, k, k);
 
     size_t bytes = (size_t)k * k * sizeof(float);
     recv_all(ws, Ri.data, bytes);
 
-    mmap_close(Ri);
+    mmap_cerrar(Ri);
 }
 
 void build_Rstack_mmap(const vector<string>& fileRis, int W, int k, const string& fileRstack){
 
-    auto Rstack = mmap_create(fileRstack, W*k, k);
+    auto Rstack = mmap_crear(fileRstack, W*k, k);
 
     for (int w = 0; w < W; ++w) {
-        auto Ri = mmap_open_read(fileRis[w], k, k);
+        auto Ri = mmap_abrir_lectura(fileRis[w], k, k);
         for (int i = 0; i < k; ++i)
             for (int j = 0; j < k; ++j)
                 Rstack.data[(uint64_t)(w*k + i)*k + j] = Ri.data[(uint64_t)i*k + j];
-        mmap_close(Ri);
+        mmap_cerrar(Ri);
     }
 
-    mmap_close(Rstack);
+    mmap_cerrar(Rstack);
 }
 
 void extract_Qr_blocks(const string fileQ, int W, int k, vector<string>& fileQri_list){
-    auto Qbig = mmap_open_read(fileQ, W*k, k);
+    auto Qbig = mmap_abrir_lectura(fileQ, W*k, k);
 
     for (int w = 0; w < W; ++w) {
         fileQri_list[w] = "Qr_" + to_string(w) + ".bin";
 
-        auto Qr = mmap_create(fileQri_list[w], k, k);
+        auto Qr = mmap_crear(fileQri_list[w], k, k);
 
         for (int i = 0; i < k; ++i)
             for (int j = 0; j < k; ++j)
                 Qr.data[(uint64_t)i*k + j] = Qbig.data[(uint64_t)(w*k + i)*k + j];
 
-        mmap_close(Qr);
+        mmap_cerrar(Qr);
     }
 
-    mmap_close(Qbig);
+    mmap_cerrar(Qbig);
 }
 
 void send_Qr_to_worker(int sock, const string& fileQr, int k)
@@ -156,9 +156,9 @@ void send_Qr_to_worker(int sock, const string& fileQr, int k)
     MsgHeader h(ID_Q, k, k);
     send_all(sock, &h, sizeof(h));
 
-    auto Qr = mmap_open_read(fileQr, k, k);
+    auto Qr = mmap_abrir_lectura(fileQr, k, k);
     send_all(sock, Qr.data, sizeof(float)*k*k);
-    mmap_close(Qr);
+    mmap_cerrar(Qr);
 }
 
 void recv_Bi_from_worker_mmap(int ws, const string& fileBi, int k, int n) {
@@ -174,28 +174,28 @@ void recv_Bi_from_worker_mmap(int ws, const string& fileBi, int k, int n) {
     };
     print_protocol_table("ENVIA_RESULTADOSB_i(D)", table);
 
-    auto Bi = mmap_create(fileBi, k, n);
+    auto Bi = mmap_crear(fileBi, k, n);
     recv_all(ws, Bi.data, sizeof(float)*k*n);
-    mmap_close(Bi);
+    mmap_cerrar(Bi);
 }
 
 void assemble_B_mmap(const vector<string>& fileBi_list, const vector<int>& nrows,
                      int W, int k, int n, const string& outFile){
-    auto Bfinal = mmap_create(outFile, k, n);
+    auto Bfinal = mmap_crear(outFile, k, n);
     memset(Bfinal.data, 0, sizeof(float) * (size_t)k * n);
 
     for (int i = 0; i < W; ++i) {
         if (nrows[i] == 0) continue;
-        auto Bi = mmap_open_read(fileBi_list[i], k, n);
+        auto Bi = mmap_abrir_lectura(fileBi_list[i], k, n);
 
         size_t elems = (size_t)k * n;
         for (size_t p = 0; p < elems; ++p)
             Bfinal.data[p] += Bi.data[p];
 
-        mmap_close(Bi);
+        mmap_cerrar(Bi);
     }
 
-    mmap_close(Bfinal);
+    mmap_cerrar(Bfinal);
 }
 
 void send_B_block_to_worker_mmap(int sock, MMapMatrix& B, int k, int n,
@@ -225,19 +225,19 @@ void recv_Cj_from_worker_mmap(int ws, const string& fileCj, int k) {
     print_protocol_table("RECIBIR_C_PARCIAL(E)", table);
     // ------------------------------
 
-    auto Cj = mmap_create(fileCj, k, k);
+    auto Cj = mmap_crear(fileCj, k, k);
     // Nota: Cj es k x k
     size_t bytes = (size_t)k * k * sizeof(float);
     recv_all(ws, Cj.data, bytes);
-    mmap_close(Cj);
+    mmap_cerrar(Cj);
 }
 
 void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
     const string &LambdaFile){
 
-    MMapMatrix Cmm = mmap_open_read(Cfile, k, k);
-    MMapMatrix Utilmm = mmap_create(UtilFile,k, k);
-    MMapMatrix Lambdamm = mmap_create(LambdaFile, k, 1);
+    MMapMatrix Cmm = mmap_abrir_lectura(Cfile, k, k);
+    MMapMatrix Utilmm = mmap_crear(UtilFile,k, k);
+    MMapMatrix Lambdamm = mmap_crear(LambdaFile, k, 1);
 
     vector<float> A((size_t)k * k);
     for (int i = 0; i < k * k; ++i) A[i] = Cmm.data[i]; //necesario pal jacobo
@@ -262,17 +262,17 @@ void eigendecompose_C_mmap(const string &Cfile, int k, const string &UtilFile,
     msync(Utilmm.data, Utilmm.bytes, MS_SYNC);
     msync(Lambdamm.data, Lambdamm.bytes, MS_SYNC);
 
-    mmap_close(Cmm);
-    mmap_close(Utilmm);
-    mmap_close(Lambdamm);
+    mmap_cerrar(Cmm);
+    mmap_cerrar(Utilmm);
+    mmap_cerrar(Lambdamm);
 }
 
 void sigma_and_inv_mmap(const string &LambdaFile,
     const string &SigmaFile,const string &SigmaInvFile,int k){
 
-    auto Lambdamm = mmap_open_read(LambdaFile, k, 1);
-    auto Sigmamm = mmap_create(SigmaFile, k, 1);
-    auto SigmaInvmm = mmap_create(SigmaInvFile, k, 1);
+    auto Lambdamm = mmap_abrir_lectura(LambdaFile, k, 1);
+    auto Sigmamm = mmap_crear(SigmaFile, k, 1);
+    auto SigmaInvmm = mmap_crear(SigmaInvFile, k, 1);
 
     for (int i = 0; i < k; ++i) {
         float lambda = Lambdamm.data[i];
@@ -284,18 +284,18 @@ void sigma_and_inv_mmap(const string &LambdaFile,
     msync(Sigmamm.data, Sigmamm.bytes, MS_SYNC);
     msync(SigmaInvmm.data, SigmaInvmm.bytes, MS_SYNC);
 
-    mmap_close(Lambdamm);
-    mmap_close(Sigmamm);
-    mmap_close(SigmaInvmm);
+    mmap_cerrar(Lambdamm);
+    mmap_cerrar(Sigmamm);
+    mmap_cerrar(SigmaInvmm);
 }
 
 void send_Sigma_mmap(int sock, const string& sigmaFile, int k){
-    MMapMatrix Sm = mmap_open_read(sigmaFile, k, 1);
+    MMapMatrix Sm = mmap_abrir_lectura(sigmaFile, k, 1);
 
     MsgHeader hs(ID_S,k,0);
     send_all(sock, &hs, sizeof(hs));
     send_all(sock, Sm.data, (size_t)k * sizeof(float));
-    mmap_close(Sm);
+    mmap_cerrar(Sm);
 
     cout << "[server->client] se envió Sigma mediante mmap (" << sigmaFile << ")\n";
 }
@@ -303,14 +303,14 @@ void send_Sigma_mmap(int sock, const string& sigmaFile, int k){
 void send_Util_Sinv_to_worker_mmap(int sock,const string &UtilFile,
     const string &SigmaInvFile, int k){
 
-    MMapMatrix Utilmm = mmap_open_read(UtilFile, k, k);
-    MMapMatrix SigmaInvmm = mmap_open_read(SigmaInvFile, k, 1);
+    MMapMatrix Utilmm = mmap_abrir_lectura(UtilFile, k, k);
+    MMapMatrix SigmaInvmm = mmap_abrir_lectura(SigmaInvFile, k, 1);
 
     send_all(sock, Utilmm.data, Utilmm.bytes);
     send_all(sock, SigmaInvmm.data, SigmaInvmm.bytes);
 
-    mmap_close(Utilmm);
-    mmap_close(SigmaInvmm);
+    mmap_cerrar(Utilmm);
+    mmap_cerrar(SigmaInvmm);
 }
 
 void recv_Vj_from_worker_mmap(int sock, const string& fileVj, int k, int cols_j){
@@ -322,16 +322,16 @@ void recv_Vj_from_worker_mmap(int sock, const string& fileVj, int k, int cols_j)
     };
     print_protocol_table("RECIBIR_V_PARCIAL", table);
 
-    MMapMatrix Vj = mmap_create(fileVj, k, cols_j);
+    MMapMatrix Vj = mmap_crear(fileVj, k, cols_j);
     size_t bytes = (size_t)k * cols_j * sizeof(float);
     recv_all(sock, Vj.data, bytes);
-    mmap_close(Vj);
+    mmap_cerrar(Vj);
 }
 
 void assemble_Vt_mmap(const vector<string>& fileVj_list, const vector<int>& start_cols,
     const vector<int>& cols_list, int W, int k, int n, const string& outFile){
 
-    MMapMatrix Vt = mmap_create(outFile, k, n);
+    MMapMatrix Vt = mmap_crear(outFile, k, n);
     memset(Vt.data, 0, (size_t)k * n * sizeof(float));
 
     for (int i = 0; i < W; ++i) {
@@ -339,7 +339,7 @@ void assemble_Vt_mmap(const vector<string>& fileVj_list, const vector<int>& star
         if (cols_j == 0) continue;
 
         int start = start_cols[i];
-        MMapMatrix Vj = mmap_open_read(fileVj_list[i], k, cols_j);
+        MMapMatrix Vj = mmap_abrir_lectura(fileVj_list[i], k, cols_j);
 
         for (int r = 0; r < k; ++r) {
             float* dst = &Vt.data[(size_t)r * n + start];
@@ -348,19 +348,19 @@ void assemble_Vt_mmap(const vector<string>& fileVj_list, const vector<int>& star
             memcpy(dst, src, sizeof(float) * (size_t)cols_j);
         }
 
-        mmap_close(Vj);
+        mmap_cerrar(Vj);
     }
 
-    mmap_close(Vt);
+    mmap_cerrar(Vt);
 }
 
 void send_Vt_to_client(int cs, const string &VtFile, int k, int n){
     MsgHeader h(ID_VT,k,n);
     send_all(cs, &h, sizeof(h));
 
-    MMapMatrix Vt = mmap_open_read(VtFile, k, n);
+    MMapMatrix Vt = mmap_abrir_lectura(VtFile, k, n);
     send_all(cs, Vt.data, Vt.bytes);
-    mmap_close(Vt);
+    mmap_cerrar(Vt);
 
     cout << "[server->client] archivo enviado (" <<VtFile<< ")\n";
 }
@@ -374,9 +374,9 @@ void recv_Ui_from_worker_mmap(int sock, const string &outfile, int rows_i, int k
     };
     print_protocol_table("RECIBIR_U_PARCIAL", table);
 
-    MMapMatrix Uimm = mmap_create(outfile, rows_i, k);
+    MMapMatrix Uimm = mmap_crear(outfile, rows_i, k);
     recv_all(sock, Uimm.data, Uimm.bytes);
-    mmap_close(Uimm);
+    mmap_cerrar(Uimm);
 
     cout << "[server] se recibió Ui -> " << outfile 
               << " (" << rows_i << " x " << k << ")\n";
@@ -385,14 +385,14 @@ void recv_Ui_from_worker_mmap(int sock, const string &outfile, int rows_i, int k
 void assemble_U_mmap(const vector<string> &Ui_files, 
     const vector<int> &nrows,int W, int k, int m, const string &Ufile){
 
-    MMapMatrix Ufinal = mmap_create(Ufile, m, k);
+    MMapMatrix Ufinal = mmap_crear(Ufile, m, k);
     int row_offset = 0;
 
     for (int i = 0; i < W; ++i){
         if (nrows[i] == 0) continue;
 
         int ri = nrows[i];
-        MMapMatrix Ui = mmap_open_read(Ui_files[i], ri, k);
+        MMapMatrix Ui = mmap_abrir_lectura(Ui_files[i], ri, k);
 
         for (int r = 0; r < ri; ++r){
             memcpy(&Ufinal.data[(size_t)(row_offset + r) * k],
@@ -401,10 +401,10 @@ void assemble_U_mmap(const vector<string> &Ui_files,
         }
 
         row_offset += ri;
-        mmap_close(Ui);
+        mmap_cerrar(Ui);
     }
 
-    mmap_close(Ufinal);
+    mmap_cerrar(Ufinal);
     cout << "[server] ensambló U con mmap\n";
 }
 
@@ -555,7 +555,7 @@ void clientHandler(int cs){
     assemble_B_mmap(fileBi_list, nrows, W, k, n, "B_final.bin");
     cout << "[server] ensambló B (k x n) usando mmap\n";
 
-    auto Bmap = mmap_open_read("B_final.bin", k, n);
+    auto Bmap = mmap_abrir_lectura("B_final.bin", k, n);
 
     // 8) Enviar Bj a cada worker usando mmap (por columnas)
     for (int j = 0; j < W; ++j) {
@@ -563,7 +563,7 @@ void clientHandler(int cs){
         send_B_block_to_worker_mmap(ws[j],Bmap,k, n, start_cols[j], ncols[j]);
         cout << "[server->workers] se envió Bj ("<< start_cols[j]<< " - " << start_cols[j]+ncols[j] << ")\n";
     }
-    mmap_close(Bmap);
+    mmap_cerrar(Bmap);
 
 
     // 9) receive C_j from workers and sum to C
@@ -627,37 +627,37 @@ void clientHandler(int cs){
 
         // U: n x k_req
         {
-            MMapMatrix Ufull = mmap_open_read("U_final.bin", n, k);
-            MMapMatrix Utrim = mmap_create(U_to_send, n, k_req);
+            MMapMatrix Ufull = mmap_abrir_lectura("U_final.bin", n, k);
+            MMapMatrix Utrim = mmap_crear(U_to_send, n, k_req);
             for (uint64_t r = 0; r < n; ++r) {
                 memcpy(&Utrim.data[(size_t)r * k_req],
                        &Ufull.data[(size_t)r * k],
                        sizeof(float) * (size_t)k_req);
             }
-            mmap_close(Ufull);
-            mmap_close(Utrim);
+            mmap_cerrar(Ufull);
+            mmap_cerrar(Utrim);
         }
 
         // Vt: k_req x n (take first k_req rows)
         {
-            MMapMatrix Vfull = mmap_open_read("Vt_final.bin", k, n);
-            MMapMatrix Vtrim = mmap_create(Vt_to_send, k_req, n);
+            MMapMatrix Vfull = mmap_abrir_lectura("Vt_final.bin", k, n);
+            MMapMatrix Vtrim = mmap_crear(Vt_to_send, k_req, n);
             for (int r = 0; r < k_req; ++r) {
                 memcpy(&Vtrim.data[(size_t)r * n],
                        &Vfull.data[(size_t)r * n],
                        sizeof(float) * (size_t)n);
             }
-            mmap_close(Vfull);
-            mmap_close(Vtrim);
+            mmap_cerrar(Vfull);
+            mmap_cerrar(Vtrim);
         }
 
         // Sigma: first k_req
         {
-            MMapMatrix Sfull = mmap_open_read("Sigma.bin", k, 1);
-            MMapMatrix Strim = mmap_create(Sigma_to_send, k_req, 1);
+            MMapMatrix Sfull = mmap_abrir_lectura("Sigma.bin", k, 1);
+            MMapMatrix Strim = mmap_crear(Sigma_to_send, k_req, 1);
             memcpy(Strim.data, Sfull.data, sizeof(float) * (size_t)k_req);
-            mmap_close(Sfull);
-            mmap_close(Strim);
+            mmap_cerrar(Sfull);
+            mmap_cerrar(Strim);
         }
 
         cout << "[server] se truncaron los resultados a k_req=" << k_req << "\n";
@@ -675,9 +675,9 @@ void clientHandler(int cs){
     {
         MsgHeader h(ID_UT,n,k_req);
         send_all(cs,&h,sizeof(h));
-        MMapMatrix Ufile = mmap_open_read(U_to_send, n, k_req);
+        MMapMatrix Ufile = mmap_abrir_lectura(U_to_send, n, k_req);
         send_all(cs,Ufile.data,Ufile.bytes);
-        mmap_close(Ufile);
+        mmap_cerrar(Ufile);
     }
 
     // send S

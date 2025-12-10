@@ -19,7 +19,7 @@ struct MMapMatrix {
     string path;
 };
 
-inline MMapMatrix mmap_create(const string &path, uint64_t filas, uint64_t columnas) {
+inline MMapMatrix mmap_crear(const string &path, uint64_t filas, uint64_t columnas) {
     uint64_t elems = filas * columnas;
     size_t bytes = elems * sizeof(float);
     int fd = open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0666);
@@ -30,7 +30,7 @@ inline MMapMatrix mmap_create(const string &path, uint64_t filas, uint64_t colum
     return {(float*)m, filas, columnas, bytes, fd, path};
 }
 
-inline MMapMatrix mmap_open_read(const string &path, uint64_t filas, uint64_t columnas) {
+inline MMapMatrix mmap_abrir_lectura(const string &path, uint64_t filas, uint64_t columnas) {
     uint64_t elems = filas * columnas;
     size_t bytes = elems * sizeof(float);
     int fd = open(path.c_str(), O_RDONLY);
@@ -40,7 +40,7 @@ inline MMapMatrix mmap_open_read(const string &path, uint64_t filas, uint64_t co
     return {(float*)m, filas, columnas, bytes, fd, path};
 }
 
-inline void mmap_close(MMapMatrix &mm) {
+inline void mmap_cerrar(MMapMatrix &mm) {
     munmap(mm.data, mm.bytes);
     close(mm.fd);
 }

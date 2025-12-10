@@ -60,27 +60,27 @@ void handle_connection(int sock) {
             qr_mmap(fn("Y.bin"), rows_i, k, fn("Qi.bin"), fn("Ri.bin"));
 
             {
-                auto Rm = mmap_open_read(fn("Ri.bin"), k, k);
+                auto Rm = mmap_abrir_lectura(fn("Ri.bin"), k, k);
                 MsgHeader hr(ID_R, k, k);
                 send_all(sock, &hr, sizeof(hr));
                 send_all(sock, Rm.data, (size_t)k * k * sizeof(float));
-                mmap_close(Rm);
+                mmap_cerrar(Rm);
                 cout << "[worker->server] sent R_i to server\n";
             }
 
             {
                 MsgHeader hq;
                 recv_all(sock, &hq, sizeof(hq));
-                auto Qr = mmap_create(fn("Qr.bin"), hq.a, hq.b);
+                auto Qr = mmap_crear(fn("Qr.bin"), hq.a, hq.b);
                 recv_all(sock, Qr.data, sizeof(float)*hq.a*hq.b);
-                mmap_close(Qr);
+                mmap_cerrar(Qr);
                 cout << "[server->worker] received Qr\n";
             }
 
             {
-                auto Qi  = mmap_open_read(fn("Qi.bin"), rows_i, k);
-                auto Qr  = mmap_open_read(fn("Qr.bin"), k, k);
-                auto Qf  = mmap_create(fn("Qfinal.bin"), rows_i, k);
+                auto Qi  = mmap_abrir_lectura(fn("Qi.bin"), rows_i, k);
+                auto Qr  = mmap_abrir_lectura(fn("Qr.bin"), k, k);
+                auto Qf  = mmap_crear(fn("Qfinal.bin"), rows_i, k);
 
                 for (uint64_t r = 0; r < rows_i; ++r)
                     for (uint64_t c = 0; c < k; ++c) {
@@ -90,17 +90,17 @@ void handle_connection(int sock) {
 
                         Qf.data[r*(uint64_t)k + c] = sum;
                     }
-                mmap_close(Qi);
-                mmap_close(Qr);
-                mmap_close(Qf);
+                mmap_cerrar(Qi);
+                mmap_cerrar(Qr);
+                mmap_cerrar(Qf);
                 
                 cout << "[worker] Calculate Q_final\n";
             }
 
             {
-                auto Qf = mmap_open_read(fn("Qfinal.bin"), rows_i, k);
-                auto Ai = mmap_open_read(fn("Ai.bin"), rows_i, n);
-                auto Bi = mmap_create(fn("Bi.bin"), k, n);
+                auto Qf = mmap_abrir_lectura(fn("Qfinal.bin"), rows_i, k);
+                auto Ai = mmap_abrir_lectura(fn("Ai.bin"), rows_i, n);
+                auto Bi = mmap_crear(fn("Bi.bin"), k, n);
 
                 for (uint64_t i = 0; i < (uint64_t)k; ++i)
                     for (uint64_t j = 0; j < (uint64_t)n; ++j) {
@@ -109,15 +109,15 @@ void handle_connection(int sock) {
                             sum += Qf.data[t*(uint64_t)k + i] * Ai.data[t*(uint64_t)n + j];
                         Bi.data[i*(uint64_t)n + j] = sum;
                     }
-                mmap_close(Qf);
-                mmap_close(Ai);
-                mmap_close(Bi);
+                mmap_cerrar(Qf);
+                mmap_cerrar(Ai);
+                mmap_cerrar(Bi);
 
                 cout << "[worker] Calculate B_i = Q_final x A_i\n";
             }
 
             {
-                auto Bi = mmap_open_read(fn("Bi.bin"), k, n);
+                auto Bi = mmap_abrir_lectura(fn("Bi.bin"), k, n);
                 MsgHeader hb;
                 hb.id = ID_B;
                 hb.a = k;
@@ -125,7 +125,7 @@ void handle_connection(int sock) {
 
                 send_all(sock, &hb, sizeof(hb));
                 send_all(sock, Bi.data, sizeof(float)*k*n);
-                mmap_close(Bi);
+                mmap_cerrar(Bi);
 
                 cout << "[worker->server] sent B_i to server\n";
             }
@@ -135,15 +135,15 @@ void handle_connection(int sock) {
                 MsgHeader hd;
                 recv_all(sock, &hd, sizeof(hd));
                 cols_j = static_cast<int>(hd.b);
-                auto Bj = mmap_create(fn("Bj.bin"), k, cols_j);
+                auto Bj = mmap_crear(fn("Bj.bin"), k, cols_j);
                 recv_all(sock, Bj.data, sizeof(float) * k * cols_j);
-                mmap_close(Bj);
+                mmap_cerrar(Bj);
                 cout << "[server->worker] received B_j from server (" << cols_j << " cols)\n";                
             }
 
             {
-                auto Bj = mmap_open_read(fn("Bj.bin"), k, cols_j);
-                auto Cj = mmap_create(fn("Cj.bin"), k, k);
+                auto Bj = mmap_abrir_lectura(fn("Bj.bin"), k, cols_j);
+                auto Cj = mmap_crear(fn("Cj.bin"), k, k);
                 // BB^T
                 for (int i = 0; i < k; ++i) {
                     for (int j = 0; j < k; ++j) {
@@ -158,8 +158,8 @@ void handle_connection(int sock) {
                     }
                 }
 
-                mmap_close(Bj);
-                mmap_close(Cj);
+                mmap_cerrar(Bj);
+                mmap_cerrar(Cj);
 
                 cout << "[worker] Calculate C_j (k x k)\n";  
             }
@@ -168,40 +168,40 @@ void handle_connection(int sock) {
                 MsgHeader h(ID_C, k, k);
                 send_all(sock, &h, sizeof(h));
 
-                auto Cj = mmap_open_read(fn("Cj.bin"), k, k);
+                auto Cj = mmap_abrir_lectura(fn("Cj.bin"), k, k);
                 send_all(sock, Cj.data, sizeof(float) * k * k);
-                mmap_close(Cj);
+                mmap_cerrar(Cj);
 
                 cout << "[worker->server] sent C_j to server\n";
             }
             
             {
-                auto Utilmm = mmap_create(fn("Utilde.bin"), k, k);
+                auto Utilmm = mmap_crear(fn("Utilde.bin"), k, k);
                 recv_all(sock, Utilmm.data, sizeof(float) * k * k);
 
-                auto SigmaInvmm = mmap_create(fn("SigmaInv.bin"), k, 1);
+                auto SigmaInvmm = mmap_crear(fn("SigmaInv.bin"), k, 1);
                 recv_all(sock, SigmaInvmm.data, sizeof(float) * k);
 
-                mmap_close(Utilmm);
-                mmap_close(SigmaInvmm);
+                mmap_cerrar(Utilmm);
+                mmap_cerrar(SigmaInvmm);
                 cout << "[server->worker] received Utilde and SigmaInv from server\n";           
             }
 
             compute_Vj_mmap(fn("Utilde.bin"),fn("SigmaInv.bin"),fn("Bj.bin"),fn("Vj.bin"),k,cols_j);
 
             {
-                auto Vj = mmap_open_read(fn("Vj.bin"), k, cols_j);
+                auto Vj = mmap_abrir_lectura(fn("Vj.bin"), k, cols_j);
                 send_all(sock, Vj.data, Vj.bytes);
-                mmap_close(Vj);
+                mmap_cerrar(Vj);
                 cout << "[worker->server] send V_j to server\n";
             }
 
             compute_Ui_mmap(fn("Qfinal.bin"),fn("Utilde.bin"),fn("Ui.bin"),rows_i,k);
 
             send_all(sock, &h, sizeof(h));
-            MMapMatrix Ui = mmap_open_read(fn("Ui.bin"), rows_i, k);
+            MMapMatrix Ui = mmap_abrir_lectura(fn("Ui.bin"), rows_i, k);
             send_all(sock, Ui.data, Ui.bytes);
-            mmap_close(Ui);
+            mmap_cerrar(Ui);
 
             std::cout << "[worker -> server] sent U_i\n";                
 
