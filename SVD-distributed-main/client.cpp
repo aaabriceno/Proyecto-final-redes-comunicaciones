@@ -41,9 +41,17 @@ bool cargar_matriz_desde_bin(const string& ruta) {
         return false;
     }
 
+    // Si el archivo fuente es el mismo destino, solo ajusta N_global
+    if (ruta == MATRIX_FILE) {
+        N_global = n;
+        cout << "Matriz ya presente en " << MATRIX_FILE << " ("<< n <<" x "<< n <<")\n";
+        return true;
+    }
+
     auto src = mmap_abrir_lectura(ruta, n, n);
     auto dst = mmap_crear(MATRIX_FILE, n, n);
     memcpy(dst.data, src.data, bytes);
+    msync(dst.data, dst.bytes, MS_SYNC);
     mmap_cerrar(src);
     mmap_cerrar(dst);
 
@@ -54,7 +62,10 @@ bool cargar_matriz_desde_bin(const string& ruta) {
 
 void generate_matrix(uint64_t N) {
     auto mm = mmap_crear(MATRIX_FILE, N, N);
-    std::mt19937 rng((uint32_t)12345);
+    uint32_t seed = static_cast<uint32_t>(
+        std::chrono::steady_clock::now().time_since_epoch().count() ^
+        std::random_device{}());
+    std::mt19937 rng(seed);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
     uint64_t elems = N * (uint64_t)N;
     for (uint64_t i = 0; i < elems; ++i) mm.data[i] = dist(rng);
@@ -65,6 +76,11 @@ void generate_matrix(uint64_t N) {
 }
 
 void showMatrix(const string &filename,uint64_t max_rows = 5,uint64_t max_cols = 5){
+    namespace fs = std::filesystem;
+    if (!fs::exists(filename)) {
+        cout << filename << ": no existe\n\n";
+        return;
+    }
     if (N_global == 0) {
         cout << filename << ": No data (N_global==0)\n\n";
         return;
@@ -73,34 +89,43 @@ void showMatrix(const string &filename,uint64_t max_rows = 5,uint64_t max_cols =
     cout << "========= " << filename << " (max "
          << max_rows << "x" << max_cols << ") =========\n";
 
-    auto mm = mmap_abrir_lectura(filename, N_global, N_global);
-
-    for (uint64_t r = 0; r < min(max_rows, N_global); ++r) {
-        for (uint64_t c = 0; c < min(max_cols, N_global); ++c) {
-            cout << mm.data[r * N_global + c] << "\t";
+    try {
+        auto mm = mmap_abrir_lectura(filename, N_global, N_global);
+        for (uint64_t r = 0; r < min(max_rows, N_global); ++r) {
+            for (uint64_t c = 0; c < min(max_cols, N_global); ++c) {
+                cout << mm.data[r * N_global + c] << "\t";
+            }
+            cout << "\n";
         }
         cout << "\n";
+        mmap_cerrar(mm);
+    } catch (const std::exception& e) {
+        cout << filename << ": error al leer (" << e.what() << ")\n\n";
     }
-    cout << "\n";
-
-    mmap_cerrar(mm);
 }
 
 void showSigma(const string &filename, uint64_t max_vals = 5){
+    namespace fs = std::filesystem;
+    if (!fs::exists(filename)) {
+        cout << filename << ": no existe\n\n";
+        return;
+    }
     if (N_global == 0) {
         cout << "Sigma: No data (N_global==0)\n\n";
         return;
     }
 
     cout << "========= SIGMA (S) (max " << max_vals << ") =========\n";
-    auto mm = mmap_abrir_lectura(filename, N_global, 1);  // vector de tamaño N
-
-    for (uint64_t i = 0; i < min(max_vals, N_global); ++i) {
-        cout << mm.data[i] << "\t";
+    try {
+        auto mm = mmap_abrir_lectura(filename, N_global, 1);  // vector de tamaño N
+        for (uint64_t i = 0; i < min(max_vals, N_global); ++i) {
+            cout << mm.data[i] << "\t";
+        }
+        cout << "\n\n";
+        mmap_cerrar(mm);
+    } catch (const std::exception& e) {
+        cout << filename << ": error al leer (" << e.what() << ")\n\n";
     }
-    cout << "\n\n";
-
-    mmap_cerrar(mm);
 }
 
 void send_matrix_and_receive_svd(int k_total, int k_target) {
