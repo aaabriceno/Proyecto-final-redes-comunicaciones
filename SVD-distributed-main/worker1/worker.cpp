@@ -33,7 +33,6 @@ void manejar_conexion(int sock) {
             void* mapv = mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
             float* M = (float*)mapv;
 
-            // receive matrix A_i
             size_t rec = 0;
             char* base = (char*)mapv;
             while (rec < bytes) {
@@ -45,7 +44,6 @@ void manejar_conexion(int sock) {
                 rec += chunk;
             }
 
-            // Seed proccess
             MsgHeader hs;
             recv_all(sock, &hs, sizeof(hs));
             uint64_t seed = hs.a;
@@ -142,7 +140,6 @@ void manejar_conexion(int sock) {
             {
                 auto Bj = mmap_abrir_lectura(fn("Bj.bin"), k, cols_j);
                 auto Cj = mmap_crear(fn("Cj.bin"), k, k);
-                // BB^T
                 for (int i = 0; i < k; ++i) {
                     for (int j = 0; j < k; ++j) {
                         float sum = 0.0f;

@@ -1,10 +1,6 @@
-// client.cpp
-// Menu: 1) generate nxn matrix (float,mmap) 2) send to server for distributed SVD 3) view head 4) exit
-// Compile: g++ -std=c++17 client.cpp -o client -pthread
 
 #include "protocolo.hpp"
 #include "mapeo_matriz.hpp"
-
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -42,7 +38,6 @@ bool cargar_matriz_desde_bin(const string& ruta) {
         return false;
     }
 
-    // Si el archivo fuente es el mismo destino, solo ajusta N_global
     if (ruta == MATRIX_FILE) {
         N_global = n;
         cout << "Matriz ya presente en " << MATRIX_FILE << " ("<< n <<" x "<< n <<")\n";
@@ -138,7 +133,6 @@ void enviar_matriz_y_recibir_svd(int k_total, int k_target) {
     inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr);
     if (connect(sock, (sockaddr*)&serv, sizeof(serv)) < 0) { perror("connect"); close(sock); return; }
 
-    // Pre-check de disponibilidad de workers (min 2, con reintentos)
     const uint64_t min_workers = 2;
     const int max_attempts = 3;
     int attempt = 0;
@@ -170,12 +164,10 @@ void enviar_matriz_y_recibir_svd(int k_total, int k_target) {
         return;
     }
 
-    // Message header: ID_A + n + k_total (k+p)
     MsgHeader h;
     h.id = ID_A; h.a = N_global; h.b = k_total;
     if (!send_all(sock, &h, sizeof(h))) { cerr << "Error al enviar el encabezado\n"; close(sock); return; }
 
-    // stream matrix in chunks from mmap
     auto mm = mmap_abrir_lectura(MATRIX_FILE, N_global, N_global);
     size_t bytes = mm.bytes;
     size_t sent = 0;
@@ -188,19 +180,13 @@ void enviar_matriz_y_recibir_svd(int k_total, int k_target) {
     cout << "Enviar matriz (" << sent << " bytes)\n";
     munmap(mm.data, mm.bytes); close(mm.fd);
 
-    // Enviar k solicitado (sin oversampling) para que el server recorte
     MsgHeader hk(ID_K, (uint64_t)k_target, 0);
     send_all(sock, &hk, sizeof(hk));
-
-    // Now wait for final MsgHeader with ID 'U' or final result sizes
-    // We'll receive messages sequentially: U (rows,cols) + data; S (k,k diag) + data; V (k,n) + data
-    // For simplicity we expect server to send three messages: ID_U, ID_S (we reused ID_U for Utilde?), and ID_V
-    // We'll accept messages until 'X' (done)
 
     while (true) {
         MsgHeader rh;
         if (!recv_all(sock, &rh, sizeof(rh))) { cerr << "recv header failed\n"; break; }
-        if (rh.id == ID_UT) { // server sends final U (rows x k) maybe big; to keep simple we read and store to files
+        if (rh.id == ID_UT) { 
             uint64_t rows = rh.a, cols = rh.b;
             cout << "Receiving U ("<<rows<<"x"<<cols<<")\n";
             string fname = "U.bin";
@@ -212,7 +198,7 @@ void enviar_matriz_y_recibir_svd(int k_total, int k_target) {
             munmap(map, rows*cols*sizeof(float));
             close(fd);
             cout << "Saved U to " << fname << "\n";
-        } else if (rh.id == ID_S) { // reuse as S diag or Sigma
+        } else if (rh.id == ID_S) { 
             uint64_t len = rh.a;
             cout << "Receiving singular values (" << len << ")\n";
             string fname = "S.bin";

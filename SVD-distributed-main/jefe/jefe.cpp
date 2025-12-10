@@ -228,7 +228,6 @@ void manejar_cliente(int cs) {
         return;
     }
 
-    // Enviar k solicitado al server
     MsgHeader hk(ID_K, k_target, 0);
     send_all(ss, &hk, sizeof(hk));
 

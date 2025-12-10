@@ -195,7 +195,6 @@ void ensamblar_B_mmap(const vector<string>& fileBi_list, const vector<int>& nrow
 
 void enviar_bloque_B_a_worker_mmap(int sock, MMapMatrix& B, int k, int n,
                                  int col_start, int col_count){
-    // Enviamos cabecera para que el worker conozca cuántas columnas recibe
     MsgHeader h(ID_D, k, col_count);
     send_all(sock, &h, sizeof(h));
     for (int r = 0; r < k; ++r) {
@@ -217,10 +216,8 @@ void recibir_Cj_de_worker_mmap(int ws, const string& fileCj, int k) {
         {"data",      "Var", "Datos C_j",        "[Matriz k x k]"}
     };
     imprimir_tabla_protocolo("RECIBIR_C_PARCIAL(E)", table);
-    // ------------------------------
 
     auto Cj = mmap_crear(fileCj, k, k);
-    // Nota: Cj es k x k
     size_t bytes = (size_t)k * k * sizeof(float);
     recv_all(ws, Cj.data, bytes);
     mmap_cerrar(Cj);
@@ -420,7 +417,7 @@ void manejar_cliente(int cs){
 
     if (h.id != ID_A) { cerr << "se esperaba un encabezado A\n"; close(cs); return; }
     uint64_t n = h.a;
-    uint64_t k_full = h.b; // k + p (oversampling)
+    uint64_t k_full = h.b; 
     cerr << "[server] randomized SVD con n = "<<n<<" k_full="<<k_full<<"\n";
 
     string fname = "server_matrix.bin";
@@ -443,7 +440,6 @@ void manejar_cliente(int cs){
     }
     cerr << "[client->server] matriz A recibida ("<<n<<"x"<<n<<")\n";
 
-    // receive target k (without oversampling) to truncate later
     uint64_t k_target = k_full;
     MsgHeader hk;
     if (recv_all(cs, &hk, sizeof(hk)) && hk.id == ID_K) {
@@ -553,7 +549,6 @@ void manejar_cliente(int cs){
         recibir_Cj_de_worker_mmap(ws[j], fileCj_list[j], k);
         cout << "[server] se recibió C_" << j << " del trabajador " << j << "\n";
     }
-    //se usa la misma funcion que bmmap porque solo es para ensamblar
     ensamblar_B_mmap(fileCj_list, ncols, W, k, k,"C_final.bin");
     cout << "[server] matriz C (k x k) ensamblada usando mmap\n";
     
@@ -652,10 +647,8 @@ void manejar_cliente(int cs){
         mmap_cerrar(Ufile);
     }
 
-    // send S
     enviar_Sigma_mmap(cs, Sigma_to_send, k_req);
 
-    // send V^T
     enviar_Vt_a_cliente(cs,Vt_to_send,k_req,n);
 
     vector<vector<string>> tableH = {

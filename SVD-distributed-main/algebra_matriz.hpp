@@ -56,20 +56,17 @@ void descomponer_qr_mmap(const string &fileY,int rows, int k,
 
     for (int j = 0; j < k; ++j) {
 
-        // v = Y[:, j]
         for (int i = 0; i < rows; ++i)
             v[i] = Y.data[(uint64_t)i * k + j];
 
         for (int i = 0; i < j; ++i) {
             float rij = 0;
 
-            // rij = Q[:,i]^T * v
             for (int t = 0; t < rows; ++t)
                 rij += Q.data[(uint64_t)t * k + i] * v[t];
 
             R.data[(uint64_t)i * k + j] = rij;
 
-            // v -= rij * Q[:,i]
             for (int t = 0; t < rows; ++t)
                 v[t] -= rij * Q.data[(uint64_t)t * k + i];
         }
@@ -104,9 +101,7 @@ inline void jacobi_autovalores_inplace(float* A, int n, float* Util, float* Lamb
     vector<float> M((size_t)n * n);
     for (int i = 0; i < n * n; ++i) M[i] = A[i];
 
-    // Jacobi iterations
     for (int iter = 0; iter < max_iter; ++iter) {
-        // find largest off-diagonal element
         int p = 0, q = 1;
         float maxv = 0.0f;
         for (int i = 0; i < n; ++i) {
@@ -124,7 +119,6 @@ inline void jacobi_autovalores_inplace(float* A, int n, float* Util, float* Lamb
         float phi = 0.5f * atan2f(2.0f * apq, (aqq - app));
         float c = cosf(phi), s = sinf(phi);
 
-        // update matrix M: perform rotation in (p,q) plane
         for (int i = 0; i < n; ++i) {
             if (i == p || i == q) continue;
             float mip = M[i * n + p];
@@ -142,7 +136,6 @@ inline void jacobi_autovalores_inplace(float* A, int n, float* Util, float* Lamb
         M[p * n + q] = 0.0f;
         M[q * n + p] = 0.0f;
 
-        // update Util columns p and q
         for (int i = 0; i < n; ++i) {
             float up = Util[i * n + p];
             float uq = Util[i * n + q];

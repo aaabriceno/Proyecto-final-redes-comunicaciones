@@ -14,21 +14,20 @@ static const int WORKER_PORT = 45001;
 static const int BOSS_SERVER_PORT = 45002;
 static const size_t CHUNK = 64*1024; // 64 KB
 
-// message IDs (single char)
-#define ID_K 'K'  // client -> server: target k (without oversampling)
-#define ID_H 'H'  // handshake: availability / worker count
-#define ID_A 'A'  // server -> worker: block Ai
-#define ID_S 'S'  // server -> worker: seed + k, and Sigma for client
-#define ID_R 'R'  // worker -> server: R_i (k x k)
-#define ID_Q 'Q'  // server -> worker: Qr_i (k x k)
-#define ID_B 'b'  // worker -> server: B_i (k x n) OR server->worker block
-#define ID_D 'D'  // server -> worker: send block of B (k x colsblock)
-#define ID_C 'c'  // worker -> server: C_j (k x k)
-#define ID_UT 'U' // server -> worker: Utilde (k x k) and Sigma^{-1} (k)
-#define ID_V 'v'  // worker -> server: V_j^T (k x colsblock)
-#define ID_VT 'V'  // server -> client: V^T (k x n)
-#define ID_UI 'u' // worker -> server: U_i (rows_i x k)
-#define ID_DONE 'X' // generic done
+#define ID_K 'K'  
+#define ID_H 'H'  
+#define ID_A 'A'  
+#define ID_S 'S'  
+#define ID_R 'R' 
+#define ID_Q 'Q'  
+#define ID_B 'b'  
+#define ID_D 'D'  
+#define ID_C 'c'  
+#define ID_UT 'U' 
+#define ID_V 'v'  
+#define ID_VT 'V' 
+#define ID_UI 'u' 
+#define ID_DONE 'X' 
 
 struct MsgHeader {
     char id;
