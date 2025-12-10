@@ -1,6 +1,6 @@
 // server.cpp
 // Compile: g++ -std=c++17 server.cpp -o server -pthread
-#include "../common.hpp"
+#include "../protocolo.hpp"
 #include "../matrix_io.hpp"
 #include "../matrix_math.hpp"
 

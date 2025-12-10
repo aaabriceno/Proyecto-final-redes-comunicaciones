@@ -2,7 +2,7 @@
 // Acts as a front controller: accepts the client matrix, chooses the seed,
 // forwards the request to the worker-facing server, and relays the results back.
 
-#include "../common.hpp"
+#include "../protocolo.hpp"
 #include "../matrix_io.hpp"
 
 #include <arpa/inet.h>

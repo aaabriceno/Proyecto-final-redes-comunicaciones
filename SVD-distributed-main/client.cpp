@@ -2,7 +2,7 @@
 // Menu: 1) generate nxn matrix (float,mmap) 2) send to server for distributed SVD 3) view head 4) exit
 // Compile: g++ -std=c++17 client.cpp -o client -pthread
 
-#include "common.hpp"
+#include "protocolo.hpp"
 #include "matrix_io.hpp"
 
 #include <arpa/inet.h>
