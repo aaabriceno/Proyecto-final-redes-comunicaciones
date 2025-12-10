@@ -21,7 +21,7 @@ using namespace std;
 namespace {
 atomic<uint64_t> client_counter{0};
 
-int connect_to_dispatch_server() {
+int conectar_servidor_trabajo() {
     int s = socket(AF_INET, SOCK_STREAM, 0);
     if (s < 0) { perror("Conexion jefe --> servidor"); return -1; }
 
@@ -37,7 +37,7 @@ int connect_to_dispatch_server() {
     return s;
 }
 
-bool relay_payload(int src, int dst, size_t bytes) {
+bool retransmitir_payload(int src, int dst, size_t bytes) {
     vector<char> buf(min(CHUNK, bytes > 0 ? bytes : CHUNK));
     size_t done = 0;
     while (done < bytes) {
@@ -49,7 +49,7 @@ bool relay_payload(int src, int dst, size_t bytes) {
     return true;
 }
 
-bool forward_matrix(int serverSock, MMapMatrix& mm, uint64_t n, uint64_t k) {
+bool reenviar_matriz(int serverSock, MMapMatrix& mm, uint64_t n, uint64_t k) {
     MsgHeader h(ID_A, n, k);
     if (!send_all(serverSock, &h, sizeof(h))) return false;
 
@@ -64,7 +64,7 @@ bool forward_matrix(int serverSock, MMapMatrix& mm, uint64_t n, uint64_t k) {
     return true;
 }
 
-bool relay_results(int serverSock, int clientSock) {
+bool retransmitir_resultados(int serverSock, int clientSock) {
     while (true) {
         MsgHeader h;
         if (!recv_all(serverSock, &h, sizeof(h))) {
@@ -85,13 +85,13 @@ bool relay_results(int serverSock, int clientSock) {
             return false;
         }
 
-        if (payload && !relay_payload(serverSock, clientSock, payload))
+        if (payload && !retransmitir_payload(serverSock, clientSock, payload))
             return false;
     }
     return true;
 }
 
-uint64_t choose_seed() {
+uint64_t elegir_semilla() {
     uint64_t seed = (uint64_t)
         chrono::steady_clock::now().time_since_epoch().count();
     seed ^= ((uint64_t)random_device{}()) + 0x9e3779b97f4a7c15ULL
@@ -100,7 +100,7 @@ uint64_t choose_seed() {
 }
 }
 
-void handle_client(int cs) {
+void manejar_cliente(int cs) {
     const uint64_t min_workers = 1;
     auto send_done = [&](int sock){
         MsgHeader d(ID_DONE,0,0);
@@ -116,7 +116,7 @@ void handle_client(int cs) {
     }
 
     if (h.id == ID_H) {
-        int ss_chk = connect_to_dispatch_server();
+        int ss_chk = conectar_servidor_trabajo();
         if (ss_chk < 0) { send_done(cs); close(cs); return; }
         MsgHeader req(ID_H, 0, 0), resp;
         if (!send_all(ss_chk, &req, sizeof(req)) ||
@@ -173,7 +173,7 @@ void handle_client(int cs) {
         cerr << "[jefe] advertencia: cliente no envió ID_K, usando k_full\n";
     }
 
-    int ss = connect_to_dispatch_server();
+    int ss = conectar_servidor_trabajo();
     if (ss < 0) {
         mmap_cerrar(mm);
         close(cs);
@@ -218,7 +218,7 @@ void handle_client(int cs) {
         return;
     }
 
-    if (!forward_matrix(ss, mm, n, k_full)) {
+    if (!reenviar_matriz(ss, mm, n, k_full)) {
         cerr << "[jefe] fallo enviando matriz al servidor\n";
         send_done(cs);
         mmap_cerrar(mm);
@@ -232,7 +232,7 @@ void handle_client(int cs) {
     MsgHeader hk(ID_K, k_target, 0);
     send_all(ss, &hk, sizeof(hk));
 
-    uint64_t seed = choose_seed();
+    uint64_t seed = elegir_semilla();
     MsgHeader seedMsg(ID_S, seed, k_full);
     send_all(ss, &seedMsg, sizeof(seedMsg));
     cerr << "[jefe->server] enviado seed=" << seed << "\n";
@@ -240,7 +240,7 @@ void handle_client(int cs) {
     mmap_cerrar(mm);
     unlink(matrixFile.c_str());
 
-    if (!relay_results(ss, cs)) {
+    if (!retransmitir_resultados(ss, cs)) {
         cerr << "[jefe] relay fallido para cliente " << cid << "\n";
     } else {
         cerr << "[jefe] completado cliente " << cid << "\n";
@@ -270,7 +270,7 @@ int main() {
     while (true) {
         int cs = accept(ls, nullptr, nullptr);
         if (cs < 0) { perror("accept jefe"); continue; }
-        thread(handle_client, cs).detach();
+        thread(manejar_cliente, cs).detach();
     }
 
     return 0;
